@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZamboAlert — Admin</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo"><i class="fas fa-triangle-exclamation"></i></div>
+          <div class="brand-text">
+            <h1>ZamboAlert</h1>
+            <div class="brand-sub">Admin — Barangay Tumaga</div>
+          </div>
+        </div>
+        <nav>
+          <a class="nav-item" href="index.html"><i class="fas fa-chart-line icon"></i>Dashboard</a>
+          <a class="nav-item"><i class="fas fa-bell icon"></i>Alerts</a>
+          <a class="nav-item"><i class="fas fa-map icon"></i>Map</a>
+          <a class="nav-item"><i class="fas fa-chart-bar icon"></i>Reports</a>
+          <a class="nav-item active"><i class="fas fa-cog icon"></i>Admin</a>
+        </nav>
+        <div class="sidebar-footer">v1.0 • © ZamboAlert</div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="left">
+            <div class="breadcrumb">Admin / Tumaga</div>
+            <h2 class="page-title">Admin Panel — Barangay Tumaga</h2>
+          </div>
+          <div class="right">
+            <div class="search">
+              <input placeholder="Search users, roles..." />
+            </div>
+            <button class="icon-btn"><i class="fas fa-bell"></i></button>
+            <div class="user">
+              <div class="user-name">Admin</div>
+              <div class="avatar">A</div>
+            </div>
+          </div>
+        </header>
+
+        <section class="content">
+          <div class="panel two-col">
+            <div class="panel-left">
+              <h3><i class="fas fa-map"></i> Real-time Map — Barangay Tumaga</h3>
+              <div class="map" id="tumaga-map-admin">
+                <div class="map-placeholder">Real-time map view loading...</div>
+                <div class="marker admin-marker" title="Tracked location"></div>
+              </div>
+            </div>
+            <div class="panel-right">
+              <h3><i class="fas fa-users"></i> Users</h3>
+              <table class="table striped">
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Maria Dela Cruz</td><td>maria@example.ph</td><td><span class="badge moderator">Moderator</span></td><td><button class="btn"><i class="fas fa-edit"></i> Edit</button></td></tr>
+                  <tr><td>Juan Ramos</td><td>juan@example.ph</td><td><span class="badge operator">Operator</span></td><td><button class="btn"><i class="fas fa-edit"></i> Edit</button></td></tr>
+                  <tr><td>Supervisor</td><td>sup@example.ph</td><td><span class="badge admin">Admin</span></td><td><button class="btn"><i class="fas fa-edit"></i> Edit</button></td></tr>
+                </tbody>
+              </table>
+              <button class="btn primary" style="margin-top: 12px;"><i class="fas fa-plus"></i> Add User</button>
+            </div>
+          </div>
+
+          <div class="panel single">
+            <h3><i class="fas fa-sliders"></i> Settings (No SMS)</h3>
+            <div class="settings-grid">
+              <label><i class="fas fa-triangle-exclamation"></i> Alert Threshold: <input type="number" value="3" /></label>
+              <label><i class="fas fa-clock"></i> Auto-resolve (mins): <input type="number" value="60" /></label>
+              <label><i class="fas fa-envelope"></i> Notification Email: <input value="alerts@zamboalert.local" /></label>
+            </div>
+            <div style="margin-top:12px;"><button class="btn primary"><i class="fas fa-save"></i> Save Settings</button></div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

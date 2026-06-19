@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZamboAlert — Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo"><i class="fas fa-triangle-exclamation"></i></div>
+          <div class="brand-text">
+            <h1>ZamboAlert</h1>
+            <div class="brand-sub">Barangay Tumaga</div>
+          </div>
+        </div>
+
+        <nav>
+          <a class="nav-item active"><i class="fas fa-chart-line icon"></i>Dashboard</a>
+          <a class="nav-item"><i class="fas fa-bell icon"></i>Alerts</a>
+          <a class="nav-item"><i class="fas fa-map icon"></i>Tumaga Map</a>
+          <a class="nav-item"><i class="fas fa-barChart icon"></i>Reports</a>
+          <a class="nav-item" href="admin.html"><i class="fas fa-cog icon"></i>Admin</a>
+        </nav>
+
+        <div class="sidebar-footer">v1.0 • © ZamboAlert</div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="left">
+            <div class="breadcrumb">Tumaga / Overview</div>
+            <h2 class="page-title">Barangay Tumaga — Overview</h2>
+          </div>
+          <div class="right">
+            <div class="search">
+              <input placeholder="Search alerts, places..." />
+            </div>
+            <button class="icon-btn" id="notify-btn"><i class="fas fa-bell"></i></button>
+            <button class="icon-btn" id="call-btn" title="Emergency Call"><i class="fas fa-phone"></i></button>
+            <div class="user">
+              <div class="user-name">Admin</div>
+              <div class="avatar">A</div>
+            </div>
+          </div>
+        </header>
+
+        <section class="content">
+          <div class="cards">
+            <div class="stat card">
+              <div class="stat-top"><div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div><div class="label">Active Alerts</div></div>
+              <div class="value" id="active-alerts-count">0</div>
+            </div>
+            <div class="stat card">
+              <div class="stat-top"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div class="label">Resolved</div></div>
+              <div class="value" id="resolved-count">0</div>
+            </div>
+            <div class="stat card">
+              <div class="stat-top"><div class="stat-icon"><i class="fas fa-hourglass-half"></i></div><div class="label">Avg Response</div></div>
+              <div class="value" id="avg-response">0m</div>
+            </div>
+            <div class="stat card">
+              <div class="stat-top"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="label">Users</div></div>
+              <div class="value" id="users-count">0</div>
+            </div>
+          </div>
+
+          <div class="panel two-col">
+            <div class="panel-left">
+              <h3><i class="fas fa-map"></i> Real-time Map — Barangay Tumaga</h3>
+              <div class="map" id="tumaga-map">
+                <div class="map-placeholder">Real-time map view loading...</div>
+              </div>
+            </div>
+            <div class="panel-right">
+              <div class="panel-header">
+                <h3><i class="fas fa-bell"></i> Recent Alerts</h3>
+                <button class="btn primary" id="create-alert-btn"><i class="fas fa-plus"></i> New Alert</button>
+              </div>
+              <table class="table" id="alerts-table">
+                <thead>
+                  <tr><th>ID</th><th>Type</th><th>Location</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel two-col">
+            <div class="panel-left">
+              <h3><i class="fas fa-user-check"></i> Active SOS Trace</h3>
+              <div class="sos-card" id="active-sos-card">
+                <div class="status-row">
+                  <div>
+                    <div class="card-label">Active User</div>
+                    <div class="card-value" id="active-user-name">Admin</div>
+                  </div>
+                  <div>
+                    <div class="card-label">Current Status</div>
+                    <div class="card-value" id="active-user-status">Online</div>
+                  </div>
+                </div>
+                <div class="sos-details" id="active-sos-details">
+                  Select an alert from the list to trace the SOS location, active response team, and timeline within Barangay Tumaga.
+                </div>
+              </div>
+            </div>
+            <div class="panel-right">
+              <h3><i class="fas fa-user-friends"></i> Respondents</h3>
+              <table class="table striped" id="respondents-table">
+                <thead>
+                  <tr><th>Name</th><th>Role</th><th>Status</th><th>Location</th><th>Action</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+
+    <!-- Call Modal -->
+    <div id="call-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fas fa-phone"></i> Emergency Call</h3>
+          <button class="close-btn" onclick="closeCallModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Select a department to call:</p>
+          <div class="call-buttons">
+            <button class="call-btn" onclick="makeCall('911')"><i class="fas fa-phone"></i> Emergency Services (911)</button>
+            <button class="call-btn" onclick="makeCall('fire')"><i class="fas fa-fire-extinguisher"></i> Fire Department</button>
+            <button class="call-btn" onclick="makeCall('police')"><i class="fas fa-shield"></i> Police</button>
+            <button class="call-btn" onclick="makeCall('rescue')"><i class="fas fa-person-hiking"></i> Rescue Team</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Alert Modal -->
+    <div id="alert-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fas fa-plus-circle"></i> Create SOS Alert</h3>
+          <button class="close-btn" onclick="closeAlertModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="modal-label">Alert Type
+            <select id="alert-type" class="modal-input">
+              <option value="Flood">Flood</option>
+              <option value="Fire">Fire</option>
+              <option value="Accident">Accident</option>
+              <option value="Medical">Medical</option>
+              <option value="Security">Security</option>
+            </select>
+          </label>
+          <label class="modal-label">Location
+            <select id="alert-location" class="modal-input"></select>
+          </label>
+          <label class="modal-label">Reported By
+            <input id="alert-user" class="modal-input" type="text" value="Community Member" />
+          </label>
+          <div class="modal-actions">
+            <button class="btn" onclick="closeAlertModal()">Cancel</button>
+            <button class="btn primary" id="submit-alert-btn"><i class="fas fa-check"></i> Submit Alert</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="app.js"></script>
+    <script>
+      document.getElementById('call-btn').addEventListener('click', () => {
+        document.getElementById('call-modal').style.display = 'flex';
+      });
+
+      function closeCallModal() {
+        document.getElementById('call-modal').style.display = 'none';
+      }
+
+      function makeCall(department) {
+        alert(`Initiating call to ${department}...`);
+        // In production, integrate with VoIP service
+        closeCallModal();
+      }
+
+      function closeAlertModal() {
+        document.getElementById('alert-modal').style.display = 'none';
+      }
+
+      document.getElementById('create-alert-btn').addEventListener('click', () => {
+        document.getElementById('alert-modal').style.display = 'flex';
+      });
+
+      document.getElementById('submit-alert-btn').addEventListener('click', () => {
+        const type = document.getElementById('alert-type').value;
+        const location = document.getElementById('alert-location').value;
+        const user = document.getElementById('alert-user').value.trim() || 'Community Member';
+        window.alertSystem.addAlert(type, location, user);
+        closeAlertModal();
+      });
+    </script>
+  </body>
+</html>
