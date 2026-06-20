@@ -175,37 +175,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="app.js"></script>
-    <script>
-      document.getElementById('call-btn').addEventListener('click', () => {
-        document.getElementById('call-modal').style.display = 'flex';
-      });
-
-      function closeCallModal() {
-        document.getElementById('call-modal').style.display = 'none';
-      }
-
-      function makeCall(department) {
-        alert(`Initiating call to ${department}...`);
-        // In production, integrate with VoIP service
-        closeCallModal();
-      }
-
-      function closeAlertModal() {
-        document.getElementById('alert-modal').style.display = 'none';
-      }
-
-      document.getElementById('create-alert-btn').addEventListener('click', () => {
-        document.getElementById('alert-modal').style.display = 'flex';
-      });
-
-      document.getElementById('submit-alert-btn').addEventListener('click', () => {
-        const type = document.getElementById('alert-type').value;
-        const location = document.getElementById('alert-location').value;
-        const user = document.getElementById('alert-user').value.trim() || 'Community Member';
-        window.alertSystem.addAlert(type, location, user);
-        closeAlertModal();
-      });
-    </script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,151 +9,10 @@ import {
   StyleSheet,
 } from "react-native";
 
-type SOSStatus = "UNASSIGNED" | "ASSIGNED" | "RESOLVED";
-
-type SOSAlert = {
-  id: string;
-  name: string;
-  zone: string;
-  method: string;
-  status: SOSStatus;
-  battery: number;
-  time: string;
-  message?: string;
-  assignedTo?: string;
-};
-
-type Rescuer = {
-  id: string;
-  name: string;
-  status: "AVAILABLE" | "EN ROUTE" | "ON SCENE";
-  unit: string;
-  lastPing: string;
-  battery: number;
-};
-
-const INITIAL_ALERTS: SOSAlert[] = [
-  {
-    id: "A-03",
-    name: "Barangay San Roque",
-    zone: "Zone 1",
-    method: "GPS",
-    status: "UNASSIGNED",
-    battery: 82,
-    time: "08:22",
-    message: "Medical emergency reported near market.",
-  },
-  {
-    id: "A-07",
-    name: "Carmen Heights",
-    zone: "Zone 4",
-    method: "BT-Mesh",
-    status: "ASSIGNED",
-    battery: 61,
-    time: "08:18",
-    assignedTo: "R-02",
-  },
-  {
-    id: "A-12",
-    name: "Iligan Junction",
-    zone: "Zone 2",
-    method: "GPS",
-    status: "RESOLVED",
-    battery: 96,
-    time: "08:05",
-  },
-];
-
-const RESCUERS: Rescuer[] = [
-  { id: "R-01", name: "Alpha Team", status: "AVAILABLE", unit: "Brgy. Patrol", lastPing: "2m ago", battery: 87 },
-  { id: "R-02", name: "Bravo Unit", status: "EN ROUTE", unit: "Rescue Squad", lastPing: "1m ago", battery: 73 },
-  { id: "R-03", name: "Charlie", status: "ON SCENE", unit: "Medical", lastPing: "45s ago", battery: 65 },
-];
-
-const STATUS_COLOR: Record<SOSStatus | Rescuer["status"], string> = {
-  UNASSIGNED: "#dc2626",
-  ASSIGNED: "#f97316",
-  RESOLVED: "#38bdf8",
-  AVAILABLE: "#22c55e",
-  "EN ROUTE": "#f97316",
-  "ON SCENE": "#ef4444",
-};
-
-function useNow() {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
-
-function StatusBadge({ status }: { status: SOSStatus }) {
-  return (
-    <View style={[styles.badge, { backgroundColor: STATUS_COLOR[status] }]}> 
-      <Text style={styles.badgeText}>{status}</Text>
-    </View>
-  );
-}
-
-function RescuerBadge({ status }: { status: Rescuer["status"] }) {
-  return (
-    <View style={[styles.smallBadge, { backgroundColor: `${STATUS_COLOR[status]}22`, borderColor: `${STATUS_COLOR[status]}55` }]}> 
-      <Text style={[styles.smallBadgeText, { color: STATUS_COLOR[status] }]}>{status}</Text>
-    </View>
-  );
-}
-
-function Dot({ active }: { active: boolean }) {
-  return (
-    <View style={[styles.dot, active ? styles.dotActive : styles.dotInactive]} />
-  );
-}
-
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-PH", { hour12: false });
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString("en-PH", { weekday: "short", year: "numeric", month: "short", day: "numeric" });
-}
-
-function AlertCard({ alert }: { alert: SOSAlert }) {
-  return (
-    <View style={styles.alertCard}>
-      <View style={styles.alertHeader}>
-        <Text style={styles.alertName}>{alert.name}</Text>
-        <Text style={styles.alertMethod}>{alert.method}</Text>
-      </View>
-      <View style={styles.alertRow}>
-        <View>
-          <Text style={styles.alertTime}>{alert.time}</Text>
-          <Text style={styles.alertMeta}>SOS {alert.id}</Text>
-        </View>
-        <StatusBadge status={alert.status} />
-      </View>
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarFill, { width: `${alert.battery}%`, backgroundColor: STATUS_COLOR[alert.status] }]} />
-      </View>
-      <Text style={styles.alertBattery}>{alert.battery}% battery</Text>
-    </View>
-  );
-}
-
-function MapWidget() {
-  return (
-    <View style={styles.mapCard}>
-      <View style={styles.mapGradient}>
-        <View style={[styles.mapMarker, { top: "20%", left: "35%" }]}>
-          <Text style={styles.mapMarkerText}>SOS</Text>
-        </View>
-        <View style={[styles.mapMarkerSmall, { top: "55%", left: "63%" }]} />
-        <View style={[styles.mapMarkerSmall, { top: "70%", left: "28%" }]} />
-        <Text style={styles.mapHint}>Map overlay placeholder</Text>
-      </View>
-    </View>
-  );
-}
+import type { SOSAlert, Rescuer } from "./types";
+import { STATUS_COLOR, INITIAL_ALERTS, RESCUERS } from "./constants";
+import { useNow, formatTime, formatDate } from "./utils";
+import { StatusBadge, RescuerBadge, Dot, MapWidget } from "./components";
 
 export default function App() {
   const now = useNow();
@@ -195,6 +54,8 @@ export default function App() {
     setDispatchTarget(null);
   };
 
+  const broadcastReady = message.trim().length > 0;
+
   const handleBroadcast = () => {
     if (!broadcastReady) return;
     setLastAction(`Broadcast transmitted: "${message.trim()}"`);
@@ -206,8 +67,6 @@ export default function App() {
     setLastAction(`Calling ${rescuer.name} on ${rescuer.unit}.`);
     setCallRescuerOpen(false);
   };
-
-  const broadcastReady = message.trim().length > 0;
 
   return (
     <View style={styles.screen}>
@@ -708,52 +567,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
   },
-  mapCard: {
-    flex: 1,
-    borderRadius: 24,
-    backgroundColor: "#030712",
-    minHeight: 520,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#181c2b",
-  },
-  mapGradient: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: "rgba(15, 23, 42, 0.95)",
-  },
-  mapMarker: {
-    position: "absolute",
-    width: 56,
-    height: 56,
-    borderRadius: 999,
-    backgroundColor: "#dc2626",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-  },
-  mapMarkerSmall: {
-    position: "absolute",
-    width: 14,
-    height: 14,
-    borderRadius: 999,
-    backgroundColor: "#f97316",
-  },
-  mapMarkerText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  mapHint: {
-    color: "#94a3b8",
-    fontSize: 12,
-    marginTop: 16,
-  },
   statusBar: {
     marginTop: 14,
     padding: 14,
@@ -993,94 +806,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-  },
-  badge: {
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  smallBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-  },
-  smallBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  alertCard: {
-    minWidth: 240,
-    borderRadius: 20,
-    padding: 18,
-    backgroundColor: "#0f172a",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  alertHeader: {
-    marginBottom: 12,
-  },
-  alertName: {
-    color: "#f8fafc",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  alertMethod: {
-    color: "#94a3b8",
-    fontSize: 11,
-  },
-  alertRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  alertTime: {
-    color: "#38bdf8",
-    fontSize: 32,
-    fontWeight: "800",
-  },
-  alertMeta: {
-    color: "#94a3b8",
-    fontSize: 10,
-    marginTop: 4,
-  },
-  progressBarBackground: {
-    width: "100%",
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    overflow: "hidden",
-    marginTop: 12,
-  },
-  progressBarFill: {
-    height: 8,
-    borderRadius: 999,
-  },
-  alertBattery: {
-    color: "#94a3b8",
-    fontSize: 10,
-    marginTop: 6,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-  },
-  dotActive: {
-    backgroundColor: "#dc2626",
-  },
-  dotInactive: {
-    backgroundColor: "#6b7280",
   },
 });
