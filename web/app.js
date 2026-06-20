@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', function(){
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
   // Default coordinates for Barangay Tumaga (placeholder)
   const defaultLat = 8.476;
   const defaultLng = 123.610;
@@ -53,10 +59,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
       marker.bindPopup(`
         <div style="color:#000;font-weight:600;">
-          ${alert.type} SOS<br>
-          <strong>${alert.location}</strong><br>
-          Respondent: ${alert.respondent.name}<br>
-          Status: ${alert.status}
+          ${escapeHtml(alert.type)} SOS<br>
+          <strong>${escapeHtml(alert.location)}</strong><br>
+          Respondent: ${escapeHtml(alert.respondent.name)}<br>
+          Status: ${escapeHtml(alert.status)}
         </div>
       `);
 
@@ -78,11 +84,11 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('active-user-name').textContent = selected.reportedBy;
     document.getElementById('active-user-status').textContent = selected.status;
     document.getElementById('active-sos-details').innerHTML = `
-      <strong>Alert ID:</strong> ${selected.id}<br>
-      <strong>Type:</strong> ${selected.type}<br>
-      <strong>Location:</strong> ${selected.location}<br>
-      <strong>Respondent:</strong> ${selected.respondent.name} (${selected.respondent.role})<br>
-      <strong>Reported At:</strong> ${formatTime(selected.timestamp)}<br>
+      <strong>Alert ID:</strong> ${escapeHtml(selected.id)}<br>
+      <strong>Type:</strong> ${escapeHtml(selected.type)}<br>
+      <strong>Location:</strong> ${escapeHtml(selected.location)}<br>
+      <strong>Respondent:</strong> ${escapeHtml(selected.respondent.name)} (${escapeHtml(selected.respondent.role)})<br>
+      <strong>Reported At:</strong> ${escapeHtml(formatTime(selected.timestamp))}<br>
       <strong>Barangay:</strong> Tumaga
     `;
   }
@@ -165,16 +171,24 @@ document.addEventListener('DOMContentLoaded', function(){
   function renderAlerts() {
     const tbody = document.querySelector('#alerts-table tbody');
     tbody.innerHTML = alertSystem.alerts.map(alert => {
+      const safeId = escapeHtml(alert.id);
       return `
-        <tr data-alert-id="${alert.id}">
-          <td>${alert.id}</td>
-          <td><i class="fas fa-bell-on"></i> ${alert.type}</td>
-          <td>${alert.location}</td>
-          <td><span class="pill ${alert.status === 'Active' ? 'warn' : 'ok'}">${alert.status}</span></td>
-          <td><button class="btn" onclick="window.alertSystem.resolveAlert('${alert.id}')">Resolve</button></td>
+        <tr data-alert-id="${safeId}">
+          <td>${safeId}</td>
+          <td><i class="fas fa-bell-on"></i> ${escapeHtml(alert.type)}</td>
+          <td>${escapeHtml(alert.location)}</td>
+          <td><span class="pill ${alert.status === 'Active' ? 'warn' : 'ok'}">${escapeHtml(alert.status)}</span></td>
+          <td><button class="btn resolve-btn" data-alert-id="${safeId}">Resolve</button></td>
         </tr>
       `;
     }).join('');
+
+    document.querySelectorAll('#alerts-table .resolve-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.alertSystem.resolveAlert(this.getAttribute('data-alert-id'));
+      });
+    });
 
     document.querySelectorAll('#alerts-table tbody tr').forEach(tr => {
       tr.addEventListener('click', () => {
@@ -189,14 +203,20 @@ document.addEventListener('DOMContentLoaded', function(){
     tbody.innerHTML = alertSystem.users.map(user => {
       return `
         <tr>
-          <td>${user.name}</td>
-          <td>${user.role}</td>
+          <td>${escapeHtml(user.name)}</td>
+          <td>${escapeHtml(user.role)}</td>
           <td>${user.online ? 'Online' : 'Offline'}</td>
-          <td>${user.location}</td>
-          <td><button class="btn" onclick="alert('Contact ${user.name}');">Contact</button></td>
+          <td>${escapeHtml(user.location)}</td>
+          <td><button class="btn contact-btn" data-user-name="${escapeHtml(user.name)}">Contact</button></td>
         </tr>
       `;
     }).join('');
+
+    document.querySelectorAll('#respondents-table .contact-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        alert('Contact ' + this.getAttribute('data-user-name'));
+      });
+    });
   }
 
   function renderLocationOptions() {
@@ -215,31 +235,63 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   window.alertSystem = alertSystem;
-  window.makeCall = function(department) {
-    const departments = {
-      '911': 'Emergency Services (911)',
-      'fire': 'Fire Department',
-      'police': 'Police',
-      'rescue': 'Rescue Team'
-    };
-    const dept = departments[department] || department;
-    alert(`Initiating call to ${dept}...\n\nIn production, this would use a VoIP service to establish the call.`);
+
+  var departments = {
+    '911': 'Emergency Services (911)',
+    'fire': 'Fire Department',
+    'police': 'Police',
+    'rescue': 'Rescue Team'
   };
 
-  window.closeAlertModal = function() {
+  function closeCallModal() {
+    document.getElementById('call-modal').style.display = 'none';
+  }
+
+  function closeAlertModal() {
     document.getElementById('alert-modal').style.display = 'none';
-  };
+  }
 
-  document.getElementById('create-alert-btn').addEventListener('click', () => {
+  var callBtn = document.getElementById('call-btn');
+  if (callBtn) {
+    callBtn.addEventListener('click', function() {
+      document.getElementById('call-modal').style.display = 'flex';
+    });
+  }
+
+  var closeCallModalBtn = document.getElementById('close-call-modal-btn');
+  if (closeCallModalBtn) {
+    closeCallModalBtn.addEventListener('click', closeCallModal);
+  }
+
+  document.querySelectorAll('.call-btn[data-dept]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var department = this.getAttribute('data-dept');
+      var dept = departments[department] || department;
+      alert('Initiating call to ' + dept + '...\n\nIn production, this would use a VoIP service to establish the call.');
+      closeCallModal();
+    });
+  });
+
+  var closeAlertModalBtn = document.getElementById('close-alert-modal-btn');
+  if (closeAlertModalBtn) {
+    closeAlertModalBtn.addEventListener('click', closeAlertModal);
+  }
+
+  var cancelAlertBtn = document.getElementById('cancel-alert-btn');
+  if (cancelAlertBtn) {
+    cancelAlertBtn.addEventListener('click', closeAlertModal);
+  }
+
+  document.getElementById('create-alert-btn').addEventListener('click', function() {
     document.getElementById('alert-modal').style.display = 'flex';
   });
 
-  document.getElementById('submit-alert-btn').addEventListener('click', () => {
-    const type = document.getElementById('alert-type').value;
-    const location = document.getElementById('alert-location').value;
-    const user = document.getElementById('alert-user').value.trim() || 'Community Member';
-    window.alertSystem.addAlert(type, location, user);
-    window.closeAlertModal();
+  document.getElementById('submit-alert-btn').addEventListener('click', function() {
+    var type = document.getElementById('alert-type').value;
+    var location = document.getElementById('alert-location').value;
+    var user = document.getElementById('alert-user').value.trim() || 'Community Member';
+    alertSystem.addAlert(type, location, user);
+    closeAlertModal();
   });
 
 });
