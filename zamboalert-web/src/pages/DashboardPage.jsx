@@ -188,7 +188,7 @@ function PingDot({ active }) {
   return (
     <span className="relative inline-flex h-2 w-2">
       {active && (
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-50" />
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-50" />
       )}
       <span
         className="relative inline-flex rounded-full h-2 w-2"
@@ -200,7 +200,7 @@ function PingDot({ active }) {
 
 function StatusBadge({ status }) {
   const cfg = {
-    unassigned: "bg-red-600 text-white",
+    unassigned: "bg-red-800 text-white",
     assigned: "bg-orange-500 text-white",
     resolved: "bg-green-600 text-white",
   }[status];
@@ -215,7 +215,7 @@ function RescuerBadge({ status }) {
   const cfg = {
     available: "bg-green-100 text-green-700 border border-green-300",
     "en-route": "bg-orange-100 text-orange-700 border border-orange-300",
-    "on-scene": "bg-red-100 text-red-700 border border-red-300",
+    "on-scene": "bg-red-100 text-red-800 border border-red-300",
   }[status];
   return (
     <span className={`text-[8px] font-mono font-bold uppercase tracking-widest px-1.5 py-px rounded-sm ${cfg}`}>
@@ -280,14 +280,14 @@ function TacticalMap({
             style={{ left: `${a.coords[0]}%`, top: `${a.coords[1]}%` }}
           >
             {isUnassigned && (
-              <span className="absolute w-8 h-8 rounded-full border-2 border-red-500 animate-ping opacity-50" />
+              <span className="absolute w-8 h-8 rounded-full border-2 border-red-600 animate-ping opacity-50" />
             )}
             <span
               className={`relative z-10 flex items-center justify-center w-5 h-5 rounded-full border text-[8px] font-bold font-mono transition-transform ${
                 isSel ? "scale-125" : "group-hover:scale-110"
               } ${
                 a.status === "unassigned"
-                  ? "bg-red-600 border-red-700 text-white shadow-md shadow-red-200"
+                  ? "bg-red-800 border-red-800 text-white shadow-md shadow-red-200"
                   : a.status === "assigned"
                   ? "bg-orange-500 border-orange-600 text-white"
                   : "bg-red-100 border-red-300 text-red-400"
@@ -295,7 +295,7 @@ function TacticalMap({
             >
               SOS
             </span>
-            <span className="mt-0.5 text-[8px] font-mono text-red-600 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
+            <span className="mt-0.5 text-[8px] font-mono text-red-800 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
               {a.name}
             </span>
           </button>
@@ -312,15 +312,15 @@ function TacticalMap({
           <span
             className={`relative z-10 flex items-center justify-center w-4 h-4 rounded border text-[7px] font-bold font-mono shadow-sm ${
               r.status === "available"
-                ? "bg-white border-red-400 text-red-600"
+                ? "bg-white border-red-400 text-red-800"
                 : r.status === "en-route"
-                ? "bg-red-100 border-red-500 text-red-700"
-                : "bg-red-600 border-red-700 text-white"
+                ? "bg-red-100 border-red-600 text-red-800"
+                : "bg-red-800 border-red-800 text-white"
             }`}
           >
             R
           </span>
-          <span className="mt-0.5 text-[8px] font-mono text-red-500 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
+          <span className="mt-0.5 text-[8px] font-mono text-red-600 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
             {r.id}
           </span>
         </div>
@@ -329,7 +329,7 @@ function TacticalMap({
       {/* Legend */}
       <div className="absolute bottom-2 left-2 flex flex-col gap-1 text-[9px] font-mono" style={{ color: "#b91c1c" }}>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-red-600 border border-red-700" />
+          <span className="w-3 h-3 rounded-full bg-red-800 border border-red-800" />
           UNASSIGNED SOS
         </div>
         <div className="flex items-center gap-1.5">
@@ -369,12 +369,12 @@ function BroadcastModal({ onClose }) {
       <div className="bg-white border border-red-200 rounded-sm w-full max-w-lg mx-4 shadow-2xl shadow-red-100">
         <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
           <div className="flex items-center gap-2">
-            <Volume2 size={14} className="text-red-600" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-600">
+            <Volume2 size={14} className="text-red-800" />
+            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
               Broadcast Announcement
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-600 transition-colors">
+          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
             <X size={14} />
           </button>
         </div>
@@ -394,8 +394,8 @@ function BroadcastModal({ onClose }) {
                     onClick={() => setPriority(p)}
                     className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-sm border transition-colors ${
                       priority === p
-                        ? "bg-red-600 border-red-600 text-white"
-                        : "border-red-200 text-red-400 hover:border-red-400 hover:text-red-600"
+                        ? "bg-red-800 border-red-800 text-white"
+                        : "border-red-200 text-red-400 hover:border-red-400 hover:text-red-800"
                     }`}
                   >
                     {p}
@@ -416,7 +416,7 @@ function BroadcastModal({ onClose }) {
               <button
                 onClick={handleSend}
                 disabled={!msg.trim()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-800 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
               >
                 <Send size={13} />
                 TRANSMIT BROADCAST
@@ -445,21 +445,21 @@ function DispatchModal({
       <div className="bg-white border border-red-200 rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-red-100">
         <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
           <div className="flex items-center gap-2">
-            <UserCheck size={14} className="text-red-600" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-600">
+            <UserCheck size={14} className="text-red-800" />
+            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
               Dispatch Rescue Unit
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-600 transition-colors">
+          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
             <X size={14} />
           </button>
         </div>
         <div className="p-4 flex flex-col gap-3">
           <div className="bg-red-50 border border-red-100 rounded-sm p-3 text-xs font-mono space-y-1">
-            <div className="text-red-700 font-semibold">{alert.id} — {alert.name}</div>
+            <div className="text-red-800 font-semibold">{alert.id} — {alert.name}</div>
             <div className="text-red-400">{alert.zone} · {alert.lat}, {alert.lng}</div>
             {alert.message && (
-              <div className="text-red-600 italic border-t border-red-100 pt-1 mt-1">&ldquo;{alert.message}&rdquo;</div>
+              <div className="text-red-800 italic border-t border-red-100 pt-1 mt-1">&ldquo;{alert.message}&rdquo;</div>
             )}
           </div>
           <div className="text-[10px] font-mono text-red-400 uppercase tracking-widest">
@@ -475,7 +475,7 @@ function DispatchModal({
                 onClick={() => setChosen(r.id)}
                 className={`flex items-center justify-between p-2.5 rounded-sm border text-left transition-colors ${
                   chosen === r.id
-                    ? "border-red-500 bg-red-50"
+                    ? "border-red-600 bg-red-50"
                     : "border-red-100 hover:border-red-300"
                 }`}
               >
@@ -484,8 +484,8 @@ function DispatchModal({
                   <div className="text-[10px] font-mono text-red-400">{r.unit} · {r.id}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-red-500">BAT {r.battery}%</span>
-                  {chosen === r.id && <CheckCircle size={12} className="text-red-600" />}
+                  <span className="text-[10px] font-mono text-red-600">BAT {r.battery}%</span>
+                  {chosen === r.id && <CheckCircle size={12} className="text-red-800" />}
                 </div>
               </button>
             ))}
@@ -493,7 +493,7 @@ function DispatchModal({
           <button
             onClick={() => chosen && onDispatch(alert.id, chosen)}
             disabled={!chosen}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-800 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
           >
             <Navigation size={13} />
             AUTHORIZE DISPATCH
@@ -587,7 +587,7 @@ export default function Home() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-red-500 font-mono text-xs">
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-red-600 font-mono text-xs">
         <Activity className="animate-spin mb-2" size={20} />
         VERIFYING SESSION NODE...
       </div>
@@ -622,11 +622,11 @@ export default function Home() {
       <header className="flex items-center gap-4 px-5 py-3 border-b border-red-100 bg-white sticky top-0 z-40 shadow-sm shadow-red-50">
         <div className="flex items-center gap-2.5">
           <div className="relative">
-            <Shield size={22} className="text-red-600" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+            <Shield size={22} className="text-red-800" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-800 rounded-full animate-pulse" />
           </div>
           <div>
-            <div className="text-base font-bold tracking-tight text-red-700 leading-none">ZamboAlert</div>
+            <div className="text-base font-bold tracking-tight text-red-800 leading-none">ZamboAlert</div>
             <div className="text-[9px] font-mono text-red-400 tracking-widest">BARANGAY MONITORING SYSTEM</div>
           </div>
         </div>
@@ -636,10 +636,10 @@ export default function Home() {
         <div className="flex items-center gap-4 text-[10px] font-mono text-red-400">
           <div className="flex items-center gap-1.5">
             <PingDot active />
-            <span className="text-red-600 font-semibold">GATEWAY ONLINE</span>
+            <span className="text-red-800 font-semibold">GATEWAY ONLINE</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Wifi size={11} className="text-red-500" />
+            <Wifi size={11} className="text-red-600" />
             <span>LOCAL AP ACTIVE</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -651,7 +651,7 @@ export default function Home() {
         <div className="ml-auto flex items-center gap-3">
           <div className="text-right">
             <div
-              className="text-base font-mono text-red-700 tabular-nums"
+              className="text-base font-mono text-red-800 tabular-nums"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
               {fmtTime(now)}
@@ -662,14 +662,14 @@ export default function Home() {
           </div>
           <button
             onClick={() => setShowBroadcast(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-800 hover:bg-red-800 text-white text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
           >
             <Volume2 size={11} />
             BROADCAST
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 hover:border-red-400 text-red-600 hover:text-red-700 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 hover:border-red-400 text-red-800 hover:text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
           >
             <X size={11} />
             LOGOUT
@@ -686,8 +686,8 @@ export default function Home() {
           {/* Stat row */}
           <div className="grid grid-cols-3 border-b border-red-100">
             {[
-              { label: "ACTIVE SOS", value: alerts.filter((a) => a.status !== "resolved").length, color: "text-red-600" },
-              { label: "RESCUERS", value: rescuers.length, color: "text-red-500" },
+              { label: "ACTIVE SOS", value: alerts.filter((a) => a.status !== "resolved").length, color: "text-red-800" },
+              { label: "RESCUERS", value: rescuers.length, color: "text-red-600" },
               { label: "MESH NODES", value: MESH_NODES.filter((n) => n.online).length, color: "text-red-400" },
             ].map((s) => (
               <div key={s.label} className="flex flex-col items-center justify-center py-3 border-r border-red-100 last:border-0">
@@ -714,8 +714,8 @@ export default function Home() {
                 onClick={() => setActiveTab(key)}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[9px] font-mono tracking-widest border-r border-red-100 last:border-0 transition-colors ${
                   activeTab === key
-                    ? "bg-red-50 text-red-700 border-b-2 border-b-red-600"
-                    : "text-red-300 hover:text-red-500 hover:bg-red-50/50"
+                    ? "bg-red-50 text-red-800 border-b-2 border-b-red-800"
+                    : "text-red-300 hover:text-red-600 hover:bg-red-50/50"
                 }`}
               >
                 <Icon size={12} />
@@ -751,12 +751,12 @@ export default function Home() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono font-bold text-red-700">{a.id}</span>
+                          <span className="text-[10px] font-mono font-bold text-red-800">{a.id}</span>
                           <span
                             className={`text-[9px] font-mono px-1.5 py-px rounded-sm border ${
                               a.method === "GPS"
-                                ? "border-red-200 text-red-500 bg-red-50"
-                                : "border-red-300 text-red-600 bg-red-50"
+                                ? "border-red-200 text-red-600 bg-red-50"
+                                : "border-red-300 text-red-800 bg-red-50"
                             }`}
                           >
                             {a.method}
@@ -788,7 +788,7 @@ export default function Home() {
                         <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setDispatchTarget(a)}
-                            className="w-full flex items-center justify-center gap-1 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-semibold tracking-widest rounded-sm transition-colors"
+                            className="w-full flex items-center justify-center gap-1 py-1.5 bg-red-800 hover:bg-red-800 text-white text-[10px] font-semibold tracking-widest rounded-sm transition-colors"
                           >
                             <Navigation size={10} />
                             DISPATCH
@@ -826,7 +826,7 @@ export default function Home() {
                 {rescuers.map((r) => (
                   <div key={r.id} className="p-3 hover:bg-red-50/50 transition-colors">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-red-600">{r.id}</span>
+                      <span className="text-[10px] font-mono font-bold text-red-800">{r.id}</span>
                       <RescuerBadge status={r.status} />
                     </div>
                     <div className="mt-0.5 text-xs font-semibold text-red-900">{r.name}</div>
@@ -842,7 +842,7 @@ export default function Home() {
                       <span>BAT {r.battery}%</span>
                     </div>
                     {r.assignedAlert && (
-                      <div className="mt-1 text-[9px] font-mono text-red-500">→ {r.assignedAlert}</div>
+                      <div className="mt-1 text-[9px] font-mono text-red-600">→ {r.assignedAlert}</div>
                     )}
                   </div>
                 ))}
@@ -863,10 +863,10 @@ export default function Home() {
                 {MESH_NODES.map((n) => (
                   <div key={n.id} className="p-3 hover:bg-red-50/50 transition-colors">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-red-600">{n.id}</span>
+                      <span className="text-[10px] font-mono font-bold text-red-800">{n.id}</span>
                       <div className="flex items-center gap-1.5">
                         <PingDot active={n.online} />
-                        <span className={`text-[9px] font-mono uppercase tracking-widest ${n.online ? "text-red-600" : "text-red-300"}`}>
+                        <span className={`text-[9px] font-mono uppercase tracking-widest ${n.online ? "text-red-800" : "text-red-300"}`}>
                           {n.online ? "ONLINE" : "OFFLINE"}
                         </span>
                       </div>
@@ -880,7 +880,7 @@ export default function Home() {
                       <span
                         className={`px-1.5 py-px rounded-sm border text-[8px] ${
                           n.type === "gateway"
-                            ? "border-red-400 text-red-600 bg-red-50"
+                            ? "border-red-400 text-red-800 bg-red-50"
                             : n.type === "relay"
                             ? "border-red-200 text-red-400 bg-red-50"
                             : "border-red-100 text-red-300"
@@ -906,7 +906,7 @@ export default function Home() {
             <div className="flex items-center gap-2 text-[10px] font-mono text-red-400">
               <Layers size={11} />
               <span>TACTICAL MAP — LIVE</span>
-              <span className="ml-1 text-red-500 animate-pulse">●</span>
+              <span className="ml-1 text-red-600 animate-pulse">●</span>
             </div>
             <div className="flex items-center gap-3 text-[10px] font-mono text-red-300">
               <span>BARANGAY TUMAGA OVERLAY</span>
@@ -924,7 +924,7 @@ export default function Home() {
           {/* Status bar */}
           <div className="flex items-center gap-4 px-3 py-1.5 border-t border-red-100 bg-red-50/30 text-[9px] font-mono text-red-400">
             <div className="flex items-center gap-1.5">
-              <Activity size={10} className="text-red-500" />
+              <Activity size={10} className="text-red-600" />
               <span>SYSTEM NOMINAL</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -932,10 +932,10 @@ export default function Home() {
               <span>INTERNET: OFFLINE (LOCAL AP MODE)</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Zap size={10} className="text-red-500" />
-              <span className="text-red-500">BATTERY BACKUP ACTIVE</span>
+              <Zap size={10} className="text-red-600" />
+              <span className="text-red-600">BATTERY BACKUP ACTIVE</span>
             </div>
-            <div className="flex items-center gap-1.5 border-l border-red-100 pl-3 text-red-600">
+            <div className="flex items-center gap-1.5 border-l border-red-100 pl-3 text-red-800">
               <ShieldCheck size={10} />
               <span>SECURE SESSION: ACTIVE ({sessionUser})</span>
               <span className="text-slate-400">| TTL: {sessionRemaining}s</span>
@@ -950,7 +950,7 @@ export default function Home() {
         {/* Right sidebar */}
         <aside className="w-64 flex-shrink-0 flex flex-col border-l border-red-100 bg-white">
           <div className="px-3 py-2.5 border-b border-red-100 bg-red-50/50">
-            <div className="text-[10px] font-mono text-red-500 uppercase tracking-widest font-semibold">
+            <div className="text-[10px] font-mono text-red-600 uppercase tracking-widest font-semibold">
               Quick Actions
             </div>
           </div>
@@ -958,7 +958,7 @@ export default function Home() {
           <div className="p-3 flex flex-col gap-2">
             <button
               onClick={() => setShowBroadcast(true)}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
             >
               <Volume2 size={12} />
               BROADCAST ALERT
@@ -968,19 +968,19 @@ export default function Home() {
                 const first = alerts.find((a) => a.status === "unassigned");
                 if (first) setDispatchTarget(first);
               }}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-600 hover:border-red-700 bg-red-600 hover:bg-red-700 text-white text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-800 hover:border-red-800 bg-red-800 hover:bg-red-800 text-white text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
             >
               <Navigation size={12} />
               DISPATCH NEXT SOS
             </button>
-            <button className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-100 hover:border-red-300 text-red-400 hover:text-red-600 text-[11px] font-semibold tracking-wider rounded-sm transition-colors">
+            <button className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-100 hover:border-red-300 text-red-400 hover:text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors">
               <PhoneCall size={12} />
               CALL RESCUER
             </button>
           </div>
 
           <div className="border-t border-red-100 px-3 py-2.5 bg-red-50/50">
-            <div className="text-[10px] font-mono text-red-500 uppercase tracking-widest font-semibold">
+            <div className="text-[10px] font-mono text-red-600 uppercase tracking-widest font-semibold">
               Unassigned SOS
             </div>
           </div>
@@ -999,10 +999,10 @@ export default function Home() {
                   style={{ background: flashCount % 2 === 0 ? "#fff1f1" : "#ffffff" }}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-red-700">{a.id}</span>
+                    <span className="text-[10px] font-mono font-bold text-red-800">{a.id}</span>
                     <AlertTriangle
                       size={10}
-                      className={`text-red-600 transition-opacity ${flashCount % 2 === 0 ? "opacity-100" : "opacity-30"}`}
+                      className={`text-red-800 transition-opacity ${flashCount % 2 === 0 ? "opacity-100" : "opacity-30"}`}
                     />
                   </div>
                   <div className="text-xs text-red-900 font-semibold mt-0.5">{a.name}</div>
@@ -1015,7 +1015,7 @@ export default function Home() {
                   </div>
                   <button
                     onClick={() => setDispatchTarget(a)}
-                    className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold tracking-widest rounded-sm transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 bg-red-800 hover:bg-red-800 text-white text-[10px] font-bold tracking-widest rounded-sm transition-colors"
                   >
                     <ChevronRight size={10} />
                     DISPATCH
@@ -1030,11 +1030,11 @@ export default function Home() {
             <div className="text-[9px] font-mono text-red-400 uppercase tracking-widest mb-2">Network</div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-[10px] font-mono">
-                <div className="flex items-center gap-1.5 text-red-500">
+                <div className="flex items-center gap-1.5 text-red-600">
                   <Wifi size={10} />
                   <span>Wi-Fi AP</span>
                 </div>
-                <span className="text-red-600 font-semibold">ACTIVE</span>
+                <span className="text-red-800 font-semibold">ACTIVE</span>
               </div>
               <div className="flex items-center justify-between text-[10px] font-mono">
                 <div className="flex items-center gap-1.5 text-red-400">

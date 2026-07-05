@@ -187,7 +187,7 @@ export default function LoginPage() {
     const count = Object.values(checks).filter(Boolean).length;
     let label = "None", color = "bg-slate-200";
     if (password.length > 0) {
-      if (count <= 2)            { label = "Weak (Insecure)";  color = "bg-rose-500";   }
+      if (count <= 2)            { label = "Weak (Insecure)";  color = "bg-red-700";   }
       else if (count <= 4)       { label = "Medium (Fair)";    color = "bg-amber-500"; }
       else                       { label = "Strong (Secure)";  color = "bg-green-500"; }
     }
@@ -332,16 +332,16 @@ export default function LoginPage() {
               {["top-0 left-0 border-t-2 border-l-2","top-0 right-0 border-t-2 border-r-2",
                 "bottom-0 left-0 border-b-2 border-l-2","bottom-0 right-0 border-b-2 border-r-2"]
                 .map((cls, i) => (
-                <span key={i} className={`absolute ${cls} border-rose-500 w-4 h-4 rounded-sm`} />
+                <span key={i} className={`absolute ${cls} border-red-700 w-4 h-4 rounded-sm`} />
               ))}
             </div>
 
             {/* countdown ring */}
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-              <Clock className="h-3.5 w-3.5 text-rose-500" />
+              <Clock className="h-3.5 w-3.5 text-red-700" />
               <span>
                 QR expires in{" "}
-                <span className={`font-mono font-bold ${qrCountdown <= 15 ? "text-rose-500" : "text-slate-700"}`}>
+                <span className={`font-mono font-bold ${qrCountdown <= 15 ? "text-red-700" : "text-slate-700"}`}>
                   {qrCountdown}s
                 </span>
               </span>
@@ -354,7 +354,7 @@ export default function LoginPage() {
                 ["3", "Scan this QR code to authenticate"],
               ].map(([n, t]) => (
                 <li key={n} className="flex items-start gap-2">
-                  <span className="flex-shrink-0 w-4 h-4 rounded-full bg-rose-100 text-rose-500 font-bold text-[10px] flex items-center justify-center mt-0.5">{n}</span>
+                  <span className="flex-shrink-0 w-4 h-4 rounded-full bg-rose-100 text-red-700 font-bold text-[10px] flex items-center justify-center mt-0.5">{n}</span>
                   <span>{t}</span>
                 </li>
               ))}
@@ -385,7 +385,7 @@ export default function LoginPage() {
               <p className="text-xs text-blue-600 font-mono mt-0.5">{qrGmailUser}</p>
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <Loader2 className="h-4 w-4 text-rose-500 animate-spin" />
+              <Loader2 className="h-4 w-4 text-red-700 animate-spin" />
               Verifying credentials…
             </div>
           </div>
@@ -415,7 +415,7 @@ export default function LoginPage() {
             <p className="text-xs text-slate-500 text-center">The QR code timed out. Please generate a new one.</p>
             <button
               onClick={startQrSession}
-              className="flex items-center gap-2 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-semibold rounded-lg transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Refresh QR Code
             </button>
@@ -468,14 +468,14 @@ export default function LoginPage() {
       {/* Header */}
       <header className="px-6 py-4 border-b border-rose-100 bg-white flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shield className="text-rose-500 h-6 w-6" />
+          <Shield className="text-red-700 h-6 w-6" />
           <div>
             <span className="font-bold text-lg text-slate-900 leading-none block mt-1">ZamboAlert</span>
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-red-700 animate-pulse" />
             LOCAL AP ACTIVE
           </span>
         </div>
@@ -486,7 +486,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-lg p-6 shadow-xl relative overflow-hidden">
 
           {/* top accent */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-rose-500 via-rose-500 to-rose-500" />
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-700 via-red-700 to-red-700" />
 
           {/* Toast Notification Message Banner Overlay */}
           {notification.msg && (
@@ -495,10 +495,10 @@ export default function LoginPage() {
                 ? "bg-green-50 border-green-200 text-green-800" 
                 : notification.type === "info" 
                 ? "bg-blue-50 border-blue-200 text-blue-800" 
-                : "bg-rose-50 border-rose-200 text-rose-800"
+                : "bg-rose-50 border-rose-200 text-red-800"
             }`}>
               <div className="flex items-center gap-2">
-                {notification.type === "success" ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" /> : <ShieldAlert className="h-4 w-4 text-rose-500 flex-shrink-0" />}
+                {notification.type === "success" ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" /> : <ShieldAlert className="h-4 w-4 text-red-700 flex-shrink-0" />}
                 <span>{notification.msg}</span>
               </div>
               <button 
@@ -518,7 +518,7 @@ export default function LoginPage() {
                 onClick={() => setTab("credentials")}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors cursor-pointer ${
                   tab === "credentials"
-                    ? "bg-rose-500 text-white"
+                    ? "bg-red-700 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"
                 }`}
               >
@@ -528,7 +528,7 @@ export default function LoginPage() {
                 onClick={() => { setTab("qr"); if (qrPhase === QR_PHASE.IDLE || qrPhase === QR_PHASE.EXPIRED) startQrSession(); }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors cursor-pointer ${
                   tab === "qr"
-                    ? "bg-rose-500 text-white"
+                    ? "bg-red-700 text-white"
                     : "bg-white text-slate-500 hover:bg-slate-50"
                 }`}
               >
@@ -548,7 +548,7 @@ export default function LoginPage() {
               {view === "login" && (
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
-                    <Lock className="text-rose-500 h-5 w-5" /> Secure Authentication
+                    <Lock className="text-red-700 h-5 w-5" /> Secure Authentication
                   </h2>
                   <p className="text-xs text-slate-500 mb-6">
                     Access the ZamboAlert Barangay Monitoring portal.
@@ -565,7 +565,7 @@ export default function LoginPage() {
                           type="text" required value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="e.g. admin"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
                         />
                       </div>
                     </div>
@@ -582,7 +582,7 @@ export default function LoginPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
                           onFocus={() => {
                             if (!password) {
                               const up="ABCDEFGHJKLMNPQRSTUVWXYZ",lo="abcdefghjkmnpqrstuvwxyz",di="23456789",sy="!@#$%&*";
@@ -668,7 +668,7 @@ export default function LoginPage() {
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-sm rounded transition-colors shadow-md shadow-rose-900/10 cursor-pointer"
+                      className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors shadow-md shadow-red-700/10 cursor-pointer"
                     >
                       SIGN IN
                     </button>
@@ -678,7 +678,7 @@ export default function LoginPage() {
                     New official?{" "}
                     <button
                       onClick={() => setView("register")}
-                      className="text-rose-500 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                      className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
                     >
                       Register Account
                     </button>
@@ -690,7 +690,7 @@ export default function LoginPage() {
               {view === "register" && (
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
-                    <User className="text-rose-500 h-5 w-5" /> Account Registration
+                    <User className="text-red-700 h-5 w-5" /> Account Registration
                   </h2>
                   <p className="text-xs text-slate-500 mb-6">Set up your official security credentials.</p>
 
@@ -701,7 +701,7 @@ export default function LoginPage() {
                         <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                           placeholder="official@barangay.gov.ph"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
                       </div>
                     </div>
 
@@ -711,7 +711,7 @@ export default function LoginPage() {
                         <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                         <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
                           placeholder="username"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
                       </div>
                     </div>
 
@@ -727,7 +727,7 @@ export default function LoginPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
                           onFocus={() => {
                             if (!password) {
                               const up="ABCDEFGHJKLMNPQRSTUVWXYZ",lo="abcdefghjkmnpqrstuvwxyz",di="23456789",sy="!@#$%&*";
@@ -821,7 +821,7 @@ export default function LoginPage() {
                             </svg>
                             <span className="text-[10px] font-semibold text-slate-500 flex-1">Password strength check</span>
                             <span className={`text-[10px] font-bold ${
-                              strength.score <= 2 ? "text-rose-500" :
+                              strength.score <= 2 ? "text-red-700" :
                               strength.score <= 4 ? "text-amber-500" : "text-green-600"
                             }`}>
                               {strength.score <= 2 ? "Weak" : strength.score <= 4 ? "Fair" : "Strong"}
@@ -835,7 +835,7 @@ export default function LoginPage() {
                                 key={i}
                                 className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
                                   i < strength.score
-                                    ? strength.score <= 2 ? "bg-rose-500"
+                                    ? strength.score <= 2 ? "bg-red-700"
                                     : strength.score <= 4 ? "bg-amber-400"
                                     : "bg-green-500"
                                     : "bg-slate-100"
@@ -892,7 +892,7 @@ export default function LoginPage() {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
                         />
                         <button
                           type="button"
@@ -906,14 +906,14 @@ export default function LoginPage() {
                     </div>
 
                     <button type="submit"
-                      className="w-full py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-sm rounded transition-colors cursor-pointer">
+                      className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer">
                       CREATE ACCOUNT
                     </button>
                   </form>
 
                   <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
                     Already registered?{" "}
-                    <button onClick={() => setView("login")} className="text-rose-500 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
+                    <button onClick={() => setView("login")} className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
                       Sign In
                     </button>
                   </div>
@@ -924,13 +924,13 @@ export default function LoginPage() {
               {view === "verify" && (
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
-                    <Mail className="text-rose-500 h-5 w-5" /> Email Verification
+                    <Mail className="text-red-700 h-5 w-5" /> Email Verification
                   </h2>
                   <p className="text-xs text-slate-500 mb-6">Please verify your identity. Enter the code sent to {email}.</p>
 
                   <form onSubmit={handleVerifyEmail} className="space-y-4">
                     <div className="bg-rose-50 border border-rose-100 rounded p-3 text-center mb-4">
-                      <span className="text-[10px] font-mono text-rose-500 block uppercase tracking-wider mb-1">Simulator Notification</span>
+                      <span className="text-[10px] font-mono text-red-700 block uppercase tracking-wider mb-1">Simulator Notification</span>
                       <span className="text-xs text-slate-600">
                         Simulated Verification Code: <strong className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded font-mono text-sm">123456</strong>
                       </span>
@@ -941,18 +941,18 @@ export default function LoginPage() {
                       <input type="text" maxLength={6} required value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
                         placeholder="123456"
-                        className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 text-center font-mono tracking-widest text-lg text-slate-900 placeholder:text-slate-300 outline-none transition-colors" />
+                        className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 text-center font-mono tracking-widest text-lg text-slate-900 placeholder:text-slate-300 outline-none transition-colors" />
                     </div>
 
                     <button type="submit"
-                      className="w-full py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-sm rounded transition-colors cursor-pointer">
+                      className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer">
                       VERIFY CODE
                     </button>
                   </form>
 
                   <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
                     Incorrect email?{" "}
-                    <button onClick={() => setView("register")} className="text-rose-500 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
+                    <button onClick={() => setView("register")} className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
                       Back to Register
                     </button>
                   </div>
@@ -963,7 +963,7 @@ export default function LoginPage() {
               {view === "mfa" && (
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
-                    <Fingerprint className="text-rose-500 h-5 w-5" /> Two-Factor Verification
+                    <Fingerprint className="text-red-700 h-5 w-5" /> Two-Factor Verification
                   </h2>
                   <p className="text-xs text-slate-500 mb-5">MFA is mandatory for Barangay command nodes.</p>
 
@@ -972,7 +972,7 @@ export default function LoginPage() {
                   {/* Code sent info + resend timer */}
                   <div className="mb-5 space-y-2">
                     <div className="flex items-start gap-2 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
-                      <Mail className="h-3.5 w-3.5 text-rose-500 flex-shrink-0 mt-0.5" />
+                      <Mail className="h-3.5 w-3.5 text-red-700 flex-shrink-0 mt-0.5" />
                       <span>
                         A 6-digit verification code has been sent to your Gmail at{" "}
                         <span className="font-mono font-semibold text-slate-800">
@@ -1002,7 +1002,7 @@ export default function LoginPage() {
                             setResendTimer(60);
                             setEmailOpened(false);
                           }}
-                          className="text-[11px] text-rose-500 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                          className="text-[11px] text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
                         >
                           ↺ Send the code again
                         </button>
@@ -1020,16 +1020,16 @@ export default function LoginPage() {
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                         placeholder="––  ––  ––"
-                        className="w-full bg-white border border-slate-200 focus:border-rose-500 rounded px-3 py-2 text-center font-mono tracking-[0.4em] text-2xl text-slate-900 placeholder:text-slate-300 outline-none transition-colors"
+                        className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 text-center font-mono tracking-[0.4em] text-2xl text-slate-900 placeholder:text-slate-300 outline-none transition-colors"
                       />
                       <div className="text-[10px] text-slate-400 mt-2 text-center">
-                        <span>Mock Code: <strong className="font-mono text-rose-500">{mfaCode}</strong> (or enter <strong className="font-mono text-rose-500">123456</strong>)</span>
+                        <span>Mock Code: <strong className="font-mono text-red-700">{mfaCode}</strong> (or enter <strong className="font-mono text-red-700">123456</strong>)</span>
                       </div>
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-sm rounded transition-colors cursor-pointer"
+                      className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer"
                     >
                       AUTHORIZE SESSION
                     </button>
@@ -1040,22 +1040,22 @@ export default function LoginPage() {
               {/* LOCKED */}
               {view === "locked" && (
                 <div className="text-center py-6">
-                  <ShieldAlert className="mx-auto text-rose-500 h-12 w-12 animate-bounce mb-3" />
+                  <ShieldAlert className="mx-auto text-red-700 h-12 w-12 animate-bounce mb-3" />
                   <h2 className="text-xl font-bold text-slate-900 mb-2">Account Temporarily Locked</h2>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6">
                     Too many failed authentication attempts. Access is restricted for security policies.
                   </p>
 
                   <div className="bg-rose-50 border border-rose-100 rounded p-4 inline-flex items-center gap-3 mb-6">
-                    <Clock className="text-rose-500 h-5 w-5 animate-pulse" />
+                    <Clock className="text-red-700 h-5 w-5 animate-pulse" />
                     <div className="text-left">
-                      <span className="text-[9px] font-mono text-rose-500 uppercase tracking-widest block">Lockout Timer</span>
-                      <span className="text-lg font-mono text-rose-900 font-bold">{lockoutTime} seconds remaining</span>
+                      <span className="text-[9px] font-mono text-red-700 uppercase tracking-widest block">Lockout Timer</span>
+                      <span className="text-lg font-mono text-red-700 font-bold">{lockoutTime} seconds remaining</span>
                     </div>
                   </div>
 
                   <div className="text-xs text-slate-400">
-                    IP Logged: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-rose-500 font-mono">192.168.1.100</code>
+                    IP Logged: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-700 font-mono">192.168.1.100</code>
                   </div>
                 </div>
               )}
