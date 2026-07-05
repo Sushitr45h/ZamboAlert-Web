@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Lock,
   Mail,
@@ -11,7 +12,8 @@ import {
   Fingerprint,
 } from "lucide-react";
 
-export default function Login() {
+export default function LoginPage() {
+  const navigate = useNavigate();
   const [view, setView] = useState("login"); // login, register, verify, mfa, locked
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -19,7 +21,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  
+
   // Security simulation states
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutTime, setLockoutTime] = useState(0);
@@ -144,7 +146,7 @@ export default function Login() {
     // Standard simulated credential check
     // Simulating user exists: admin/admin123
     const isMockAdmin = username === "admin" && password === "admin123";
-    
+
     if (isMockAdmin || (password && password.length >= 8)) {
       setView("mfa");
     } else {
@@ -157,12 +159,12 @@ export default function Login() {
   const handleMfa = (e) => {
     e.preventDefault();
     if (otp === mfaCode || otp === "123456") {
-      
+
       // Generate Simulated JWT Token
       const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-      const payload = btoa(JSON.stringify({ 
-        sub: username || "admin", 
-        role: "barangay_official", 
+      const payload = btoa(JSON.stringify({
+        sub: username || "admin",
+        role: "barangay_official",
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 300 // 5 minute expiry
       }));
@@ -175,11 +177,9 @@ export default function Login() {
         user: username || "admin",
         expiry: Date.now() + 300 * 1000
       }));
-      
-      alert("Login successful! Redirecting to dashboard...");
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
+
+      // ✅ Use React Router navigate instead of window.location.href
+      navigate("/dashboard");
     } else {
       alert("Invalid MFA Code! Enter the rotating code shown below the input.");
     }
@@ -209,7 +209,7 @@ export default function Login() {
       {/* Main Centered container */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-lg p-6 shadow-xl relative overflow-hidden">
-          
+
           {/* Red glow accent top */}
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600"></div>
 
