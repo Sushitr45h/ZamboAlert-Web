@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
+import { db } from "../firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+
 import {
   Lock,
   Mail,
@@ -51,6 +54,8 @@ export default function LoginPage() {
   /* ── credential-login states ── */
   const [view, setView] = useState("login"); // login | register | verify | mfa | locked
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -82,19 +87,52 @@ export default function LoginPage() {
   const [qrPhase, setQrPhase] = useState(QR_PHASE.IDLE);
   const [qrToken, setQrToken] = useState("");
   const [qrCountdown, setQrCountdown] = useState(QR_TTL);
-  const [qrGmailUser, setQrGmailUser] = useState("");     // simulated scanned account
+  const [qrGmailUser, setQrGmailUser] = useState("");
   const qrTimerRef = useRef(null);
-  const qrAutoRef  = useRef(null);
+  const pollingIntervalRef = useRef(null);
+  const unsubscribeFirestoreRef = useRef(null);
 
   /* ─── Helpers ─────────────────────────────────────── */
   const generateQrToken = useCallback(() => {
     const rand = () => Math.random().toString(36).slice(2);
-    return `zamboalert-qr-${rand()}-${rand()}-${Date.now()}`;
+    return `${rand()}-${rand()}-${Date.now()}`;
   }, []);
 
-  const startQrSession = useCallback(() => {
+  const handleQrLogin = useCallback(async (token) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/qr-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: token }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setQrPhase(QR_PHASE.DONE);
+        setTimeout(() => {
+          localStorage.setItem("zamboalert_auth", JSON.stringify({
+            token: data.token,
+            user: data.user,
+            expiry: data.expiry,
+          }));
+          navigate("/dashboard");
+        }, 1800);
+      } else {
+        showNotificationMsg(data.message || "QR Code verification failed.", "error");
+        setQrPhase(QR_PHASE.EXPIRED);
+      }
+    } catch (err) {
+      showNotificationMsg("Connection to authentication server failed.", "error");
+      setQrPhase(QR_PHASE.EXPIRED);
+    }
+  }, [navigate]);
+
+  const startQrSession = useCallback(async () => {
+    // Clear any existing listeners
     clearInterval(qrTimerRef.current);
-    clearTimeout(qrAutoRef.current);
+    clearInterval(pollingIntervalRef.current);
+    if (unsubscribeFirestoreRef.current) {
+      unsubscribeFirestoreRef.current();
+    }
 
     const token = generateQrToken();
     setQrToken(token);
@@ -102,62 +140,88 @@ export default function LoginPage() {
     setQrCountdown(QR_TTL);
     setQrGmailUser("");
 
-    /* countdown */
-    qrTimerRef.current = setInterval(() => {
-      setQrCountdown((c) => {
-        if (c <= 1) {
-          clearInterval(qrTimerRef.current);
-          setQrPhase(QR_PHASE.EXPIRED);
-          return 0;
-        }
-        return c - 1;
+    try {
+      // 1. Register the session in the backend
+      await fetch(`${BACKEND_URL}/api/auth/qr-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: token }),
       });
-    }, 1000);
 
-    /* Simulate phone scan after ~6 s */
-    qrAutoRef.current = setTimeout(() => {
-      clearInterval(qrTimerRef.current);
-      setQrPhase(QR_PHASE.SCANNED);
+      // 2. Start Countdown Timer
+      qrTimerRef.current = setInterval(() => {
+        setQrCountdown((c) => {
+          if (c <= 1) {
+            clearInterval(qrTimerRef.current);
+            clearInterval(pollingIntervalRef.current);
+            if (unsubscribeFirestoreRef.current) unsubscribeFirestoreRef.current();
+            setQrPhase(QR_PHASE.EXPIRED);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
 
-      /* Simulate Gmail account selection after 1.5 s */
-      setTimeout(() => {
-        const mockAccount = "brgy.official@gmail.com";
-        setQrGmailUser(mockAccount);
-        setQrPhase(QR_PHASE.VERIFYING);
+      // 3. Connect real-time Firebase listener
+      if (db) {
+        try {
+          unsubscribeFirestoreRef.current = onSnapshot(doc(db, "qr_sessions", token), (snapshot) => {
+            const data = snapshot.data();
+            if (data) {
+              if (data.status === "scanned") {
+                setQrPhase(QR_PHASE.SCANNED);
+              } else if (data.status === "verified") {
+                clearInterval(qrTimerRef.current);
+                clearInterval(pollingIntervalRef.current);
+                setQrGmailUser(data.email);
+                setQrPhase(QR_PHASE.VERIFYING);
+                handleQrLogin(token);
+              }
+            }
+          });
+        } catch (fbErr) {
+          console.warn("Firestore listener failed. Resorting to polling fallback.", fbErr);
+        }
+      }
 
-        /* Simulate token validation after 2 s */
-        setTimeout(() => {
-          setQrPhase(QR_PHASE.DONE);
+      // 4. Polling fallback (ensures reliability if Firestore is not yet configured)
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/auth/qr-status?sessionId=${token}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === "scanned") {
+              setQrPhase(QR_PHASE.SCANNED);
+            } else if (data.status === "verified") {
+              clearInterval(qrTimerRef.current);
+              clearInterval(pollingIntervalRef.current);
+              if (unsubscribeFirestoreRef.current) unsubscribeFirestoreRef.current();
+              setQrGmailUser(data.email);
+              setQrPhase(QR_PHASE.VERIFYING);
+              handleQrLogin(token);
+            }
+          }
+        } catch (pollErr) {
+          console.log("Polling status check failed:", pollErr.message);
+        }
+      }, 2500);
 
-          /* auto-navigate after brief success flash */
-          setTimeout(() => {
-            const header  = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-            const payload = btoa(JSON.stringify({
-              sub: mockAccount,
-              role: "barangay_official",
-              provider: "google",
-              iat: Math.floor(Date.now() / 1000),
-              exp: Math.floor(Date.now() / 1000) + 300,
-            }));
-            const sig = btoa("hmac_sha256_signed_signature");
-            localStorage.setItem("zamboalert_auth", JSON.stringify({
-              token: `${header}.${payload}.${sig}`,
-              user: mockAccount,
-              expiry: Date.now() + 300 * 1000,
-            }));
-            navigate("/dashboard");
-          }, 1800);
-        }, 2000);
-      }, 1500);
-    }, 6000);
-  }, [generateQrToken, navigate]);
+    } catch (err) {
+      console.error("Failed to register QR session:", err);
+      showNotificationMsg("Failed to connect to authentication node.", "error");
+      setQrPhase(QR_PHASE.EXPIRED);
+    }
+  }, [generateQrToken, handleQrLogin]);
 
   /* start QR session when tab switches to "qr" */
   useEffect(() => {
     if (tab === "qr" && qrPhase === QR_PHASE.IDLE) startQrSession();
     if (tab !== "qr") {
       clearInterval(qrTimerRef.current);
-      clearTimeout(qrAutoRef.current);
+      clearInterval(pollingIntervalRef.current);
+      if (unsubscribeFirestoreRef.current) {
+        unsubscribeFirestoreRef.current();
+      }
       setQrPhase(QR_PHASE.IDLE);
     }
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -165,8 +229,12 @@ export default function LoginPage() {
   /* cleanup on unmount */
   useEffect(() => () => {
     clearInterval(qrTimerRef.current);
-    clearTimeout(qrAutoRef.current);
+    clearInterval(pollingIntervalRef.current);
+    if (unsubscribeFirestoreRef.current) {
+      unsubscribeFirestoreRef.current();
+    }
   }, []);
+
 
   /* ─── credential-login side-effects ─────────────── */
   useEffect(() => {
@@ -233,65 +301,117 @@ export default function LoginPage() {
     return () => clearInterval(resendRef.current);
   }, [view, resendTimer === 60]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const BACKEND_URL = "http://localhost:5000";
+
   /* ─── handlers ──────────────────────────────────── */
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (failedAttempts >= 2) { setView("locked"); setLockoutTime(30); return; }
-    const isMockAdmin = username === "admin" && password === "admin123";
-    if (isMockAdmin || (password && password.length >= 8)) {
-      setView("mfa");
-      setResendTimer(60);
-      setEmailOpened(false);
-    } else {
-      const a = failedAttempts + 1;
-      setFailedAttempts(a);
-      showNotificationMsg(`Invalid username or password! Attempt ${a}/3.`, "error");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setView("mfa");
+        setResendTimer(60);
+        setEmailOpened(false);
+        showNotificationMsg("2FA Code sent to your official email.", "success");
+      } else {
+        if (data.unverified) {
+          setEmail(data.email);
+          setView("verify");
+          showNotificationMsg(data.message, "warning");
+        } else {
+          const a = failedAttempts + 1;
+          setFailedAttempts(a);
+          showNotificationMsg(`${data.message || "Invalid username or password!"} Attempt ${a}/3.`, "error");
+        }
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) { showNotificationMsg("Passwords do not match!", "error"); return; }
-    if (!Object.values(strength.checks).every(Boolean)) {
-      showNotificationMsg("Please ensure your password meets all strength requirements.", "error"); return;
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, firstName, lastName }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setView("verify");
+        showNotificationMsg("Verification code and temporary password sent to your email.", "success");
+      } else {
+        showNotificationMsg(data.message || "Registration failed", "error");
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
-    setView("verify");
   };
 
-  const handleVerifyEmail = (e) => {
+  const handleVerifyEmail = async (e) => {
     e.preventDefault();
-    if (verificationCode === "123456") {
-      showNotificationMsg("Email verified successfully! You can now log in.", "success");
-      setView("login"); setEmail(""); setUsername(""); setPassword(""); setConfirmPassword("");
-    } else {
-      showNotificationMsg("Invalid verification code! Use the simulated code '123456'.", "error");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotificationMsg("Email verified successfully! You can now log in.", "success");
+        setView("login");
+        setEmail("");
+        setUsername("");
+        setPassword("");
+        setConfirmPassword("");
+        setVerificationCode("");
+      } else {
+        showNotificationMsg(data.message || "Invalid verification code!", "error");
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server.", "error");
     }
   };
 
-  const handleMfa = (e) => {
+  const handleMfa = async (e) => {
     e.preventDefault();
-    if (otp === mfaCode || otp === "123456") {
-      const header  = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-      const payload = btoa(JSON.stringify({
-        sub: username || "admin", role: "barangay_official",
-        iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 300,
-      }));
-      const sig = btoa("hmac_sha256_signed_signature");
-      localStorage.setItem("zamboalert_auth", JSON.stringify({
-        token: `${header}.${payload}.${sig}`,
-        user: username || "admin",
-        expiry: Date.now() + 300 * 1000,
-      }));
-      navigate("/dashboard");
-    } else {
-      showNotificationMsg("Invalid MFA Code! Enter the rotating code shown below the input.", "error");
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/verify-2fa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, code: otp }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("zamboalert_auth", JSON.stringify({
+          token: data.token,
+          user: data.user,
+          expiry: data.expiry,
+        }));
+        navigate("/dashboard");
+      } else {
+        showNotificationMsg(data.message || "Invalid MFA Code!", "error");
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server.", "error");
     }
   };
 
   /* ─── QR panel sub-component (inline) ──────────── */
   const QrLoginPanel = () => {
-    /* The value encoded in the QR is a deep-link that a real mobile app would handle */
-    const qrValue = `zamboalert://qr-auth?token=${qrToken}&provider=google&ts=${Date.now()}`;
+    /* The value encoded in the QR is the verification route URL */
+    const qrValue = `${window.location.origin}/verify-qr?sessionId=${qrToken}`;
 
     return (
       <div className="flex flex-col items-center gap-0">
@@ -349,9 +469,9 @@ export default function LoginPage() {
 
             <ol className="text-[11px] text-slate-500 space-y-1 text-left list-none mb-3 w-full px-2">
               {[
-                ["1", "Open Gmail app on your phone"],
-                ["2", "Tap your profile picture → \"Use another account\""],
-                ["3", "Scan this QR code to authenticate"],
+                ["1", "Scan this QR code using a mobile device"],
+                ["2", "Open the verification page in your browser"],
+                ["3", "Input/select official Gmail and tap Authorize"],
               ].map(([n, t]) => (
                 <li key={n} className="flex items-start gap-2">
                   <span className="flex-shrink-0 w-4 h-4 rounded-full bg-rose-100 text-red-700 font-bold text-[10px] flex items-center justify-center mt-0.5">{n}</span>
@@ -369,7 +489,7 @@ export default function LoginPage() {
               <Smartphone className="h-9 w-9 text-blue-500" />
             </div>
             <p className="text-sm font-semibold text-slate-700">QR Scanned!</p>
-            <p className="text-xs text-slate-500 text-center">Waiting for Google account selection on your phone…</p>
+            <p className="text-xs text-slate-500 text-center">Waiting for official account selection on your device…</p>
             <Loader2 className="h-5 w-5 text-blue-500 animate-spin mt-1" />
           </div>
         )}
@@ -426,39 +546,17 @@ export default function LoginPage() {
         {qrPhase === QR_PHASE.WAITING && (
           <button
             onClick={() => {
-              clearInterval(qrTimerRef.current);
-              clearTimeout(qrAutoRef.current);
-              setQrPhase(QR_PHASE.SCANNED);
-              setTimeout(() => {
-                const mockAccount = "brgy.official@gmail.com";
-                setQrGmailUser(mockAccount);
-                setQrPhase(QR_PHASE.VERIFYING);
-                setTimeout(() => {
-                  setQrPhase(QR_PHASE.DONE);
-                  setTimeout(() => {
-                    const header  = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-                    const payload = btoa(JSON.stringify({
-                      sub: mockAccount, role: "barangay_official", provider: "google",
-                      iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 300,
-                    }));
-                    const sig = btoa("hmac_sha256_signed_signature");
-                    localStorage.setItem("zamboalert_auth", JSON.stringify({
-                      token: `${header}.${payload}.${sig}`,
-                      user: mockAccount, expiry: Date.now() + 300 * 1000,
-                    }));
-                    navigate("/dashboard");
-                  }, 1800);
-                }, 2000);
-              }, 1500);
+              window.open(`/verify-qr?sessionId=${qrToken}`, "_blank");
             }}
             className="mt-2 text-[10px] text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors cursor-pointer bg-transparent border-0"
           >
-            ▶ Simulate phone scan (demo)
+            ▶ Simulate mobile scan (opens in new tab)
           </button>
         )}
       </div>
     );
   };
+
 
   /* ════════════════════════════════════════════════════
      RENDER
@@ -694,6 +792,27 @@ export default function LoginPage() {
                   <p className="text-xs text-slate-500 mb-6">Set up your official security credentials.</p>
 
                   <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">First Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="Juan"
+                            className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Last Name</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Dela Cruz"
+                            className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Official Email</label>
                       <div className="relative">
@@ -701,206 +820,6 @@ export default function LoginPage() {
                         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                           placeholder="official@barangay.gov.ph"
                           className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Username</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)}
-                          placeholder="username"
-                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors" />
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
-                          onFocus={() => {
-                            if (!password) {
-                              const up="ABCDEFGHJKLMNPQRSTUVWXYZ",lo="abcdefghjkmnpqrstuvwxyz",di="23456789",sy="!@#$%&*";
-                              const all=up+lo+di+sy;
-                              let p=[up,lo,di,sy].map(s=>s[Math.floor(Math.random()*s.length)]);
-                              for(let i=0;i<10;i++) p.push(all[Math.floor(Math.random()*all.length)]);
-                              setSuggestedPassword(p.sort(()=>Math.random()-0.5).join(""));
-                              setShowSuggestion(true);
-                            }
-                          }}
-                          onBlur={() => { suggestionRef.current = setTimeout(() => setShowSuggestion(false), 200); }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((v) => !v)}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-
-                      {/* ── Google Suggest Strong Password Dropdown ── */}
-                      {showSuggestion && (
-                        <div
-                          className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50">
-                            <svg width="13" height="13" viewBox="0 0 48 48" aria-hidden="true" className="flex-shrink-0">
-                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                            </svg>
-                            <span className="text-[10px] font-semibold text-slate-600 flex-1">Suggested by Google</span>
-                            <button type="button" onClick={() => setShowSuggestion(false)} className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0 text-[12px] leading-none">×</button>
-                          </div>
-                          <div className="px-3 py-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                clearTimeout(suggestionRef.current);
-                                setPassword(suggestedPassword);
-                                setConfirmPassword(suggestedPassword);
-                                setShowPassword(true);
-                                setShowConfirmPassword(true);
-                                setShowSuggestion(false);
-                              }}
-                              className="w-full flex items-start gap-2 mb-2 text-left bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-lg p-2 transition-colors cursor-pointer"
-                            >
-                              <KeyRound className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[10px] text-slate-500 mb-0.5">Click to auto-fill strong password:</p>
-                                <p className="font-mono text-sm font-bold text-blue-600 tracking-wider break-all">
-                                  {suggestedPassword}
-                                </p>
-                              </div>
-                            </button>
-                            <p className="text-[9px] text-slate-400 mb-2.5 leading-relaxed">
-                              Google will remember this password and fill it in automatically next time.
-                            </p>
-                            <div className="flex justify-end">
-                              <button
-                                type="button"
-                                title="Generate another"
-                                onClick={() => {
-                                  const up="ABCDEFGHJKLMNPQRSTUVWXYZ",lo="abcdefghjkmnpqrstuvwxyz",di="23456789",sy="!@#$%&*";
-                                  const all=up+lo+di+sy;
-                                  let p=[up,lo,di,sy].map(s=>s[Math.floor(Math.random()*s.length)]);
-                                  for(let i=0;i<10;i++) p.push(all[Math.floor(Math.random()*all.length)]);
-                                  setSuggestedPassword(p.sort(()=>Math.random()-0.5).join(""));
-                                }}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-bold rounded-lg transition-colors cursor-pointer border-0"
-                              >↺ Regenerate</button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── Google-style Password Recommendation Panel ── */}
-                      {password.length > 0 && (
-                        <div className="mt-3 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                          {/* Panel header — Google branding */}
-                          <div className="flex items-center gap-2 px-3 py-2 bg-white border-b border-slate-100">
-                            <svg width="13" height="13" viewBox="0 0 48 48" aria-hidden="true" className="flex-shrink-0">
-                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                            </svg>
-                            <span className="text-[10px] font-semibold text-slate-500 flex-1">Password strength check</span>
-                            <span className={`text-[10px] font-bold ${
-                              strength.score <= 2 ? "text-red-700" :
-                              strength.score <= 4 ? "text-amber-500" : "text-green-600"
-                            }`}>
-                              {strength.score <= 2 ? "Weak" : strength.score <= 4 ? "Fair" : "Strong"}
-                            </span>
-                          </div>
-
-                          {/* Segmented strength bar (5 segments like Google) */}
-                          <div className="flex gap-1 px-3 pt-2.5 pb-1 bg-white">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                                  i < strength.score
-                                    ? strength.score <= 2 ? "bg-red-700"
-                                    : strength.score <= 4 ? "bg-amber-400"
-                                    : "bg-green-500"
-                                    : "bg-slate-100"
-                                }`}
-                              />
-                            ))}
-                          </div>
-
-                          {/* Requirements list */}
-                          <div className="px-3 pt-2 pb-3 bg-white space-y-1.5">
-                            {[
-                              { key: "length",  label: "At least 8 characters" },
-                              { key: "upper",   label: "Uppercase letter (A–Z)" },
-                              { key: "lower",   label: "Lowercase letter (a–z)" },
-                              { key: "number",  label: "Number (0–9)" },
-                              { key: "special", label: "Symbol (!@#$%^&*…)" },
-                            ].map(({ key, label }) => (
-                              <div key={key} className="flex items-center gap-2">
-                                <span className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
-                                  strength.checks[key] ? "bg-green-100" : "bg-slate-100"
-                                }`}>
-                                  {strength.checks[key]
-                                    ? <Check size={9} className="text-green-600" strokeWidth={3} />
-                                    : <X size={9} className="text-slate-400" strokeWidth={3} />
-                                  }
-                                </span>
-                                <span className={`text-[11px] transition-colors ${
-                                  strength.checks[key] ? "text-green-700 line-through decoration-green-400" : "text-slate-500"
-                                }`}>{label}</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Google tip footer */}
-                          <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 border-t border-blue-100">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5 text-blue-500" stroke="currentColor" strokeWidth="2.5">
-                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            <p className="text-[10px] text-blue-700 leading-relaxed">
-                              <strong>Google recommends</strong> using a password you don't use on any other site, combining letters, numbers, and symbols, and avoiding personal info.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Confirm Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <input
-                          type={showConfirmPassword ? "text" : "password"}
-                          required
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword((v) => !v)}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
-                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                        >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
                       </div>
                     </div>
 
@@ -928,12 +847,7 @@ export default function LoginPage() {
                   <p className="text-xs text-slate-500 mb-6">Please verify your identity. Enter the code sent to {email}.</p>
 
                   <form onSubmit={handleVerifyEmail} className="space-y-4">
-                    <div className="bg-rose-50 border border-rose-100 rounded p-3 text-center mb-4">
-                      <span className="text-[10px] font-mono text-red-700 block uppercase tracking-wider mb-1">Simulator Notification</span>
-                      <span className="text-xs text-slate-600">
-                        Simulated Verification Code: <strong className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded font-mono text-sm">123456</strong>
-                      </span>
-                    </div>
+
 
                     <div>
                       <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1 text-center">6-Digit Verification Code</label>
@@ -995,11 +909,24 @@ export default function LoginPage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-                            setMfaCode(newCode);
-                            setResendTimer(60);
-                            setEmailOpened(false);
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${BACKEND_URL}/api/auth/resend-code`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: email || (username.includes("@") ? username : `${username}@gmail.com`), type: "mfa" }),
+                              });
+                              const data = await response.json();
+                              if (response.ok) {
+                                showNotificationMsg("A new MFA code has been sent to your email.", "success");
+                                setResendTimer(60);
+                                setEmailOpened(false);
+                              } else {
+                                showNotificationMsg(data.message, "error");
+                              }
+                            } catch (err) {
+                              showNotificationMsg("Failed to resend MFA code.", "error");
+                            }
                           }}
                           className="text-[11px] text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
                         >
@@ -1021,9 +948,7 @@ export default function LoginPage() {
                         placeholder="––  ––  ––"
                         className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 text-center font-mono tracking-[0.4em] text-2xl text-slate-900 placeholder:text-slate-300 outline-none transition-colors"
                       />
-                      <div className="text-[10px] text-slate-400 mt-2 text-center">
-                        <span>Mock Code: <strong className="font-mono text-red-700">{mfaCode}</strong> (or enter <strong className="font-mono text-red-700">123456</strong>)</span>
-                      </div>
+
                     </div>
 
                     <button

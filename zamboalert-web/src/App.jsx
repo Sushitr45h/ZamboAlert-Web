@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import VerifyQrPage from "./pages/VerifyQrPage";
 
 function PrivateRoute({ children }) {
   const auth = localStorage.getItem("zamboalert_auth");
@@ -24,6 +25,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify-qr" element={<VerifyQrPage />} />
         <Route
           path="/dashboard"
           element={
@@ -38,3 +40,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
