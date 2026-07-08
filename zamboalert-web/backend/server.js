@@ -72,7 +72,44 @@ function createTables() {
       // Ignore errors (e.g. if the column already exists)
     });
 
-    // QR Sessions table removed
+    // Casualty/Victim logs table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS casualty_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        rescuer_id TEXT,
+        rescuer_name TEXT,
+        victim_name TEXT NOT NULL,
+        age INTEGER,
+        gender TEXT,
+        status TEXT NOT NULL, -- 'Injured' | 'Deceased' | 'Missing' | 'Rescued'
+        injury_details TEXT,
+        location TEXT,
+        latitude REAL,
+        longitude REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, () => {
+      // Seed data if empty
+      db.get("SELECT COUNT(*) as count FROM casualty_logs", (err, row) => {
+        if (!err && row && row.count === 0) {
+          const seedLogs = [
+            ["R-01", "Rescue Team Alpha", "Maria Santos", 34, "Female", "Injured", "Fractured left arm, stable", "Zone 1 - Riverbank", 6.9234, 122.0765],
+            ["R-02", "Medic Unit 1", "Unknown Male", 50, "Male", "Deceased", "Drowning victim, recovered near bridge", "Zone 3 - Lowland", 6.9205, 122.0812],
+            ["R-01", "Rescue Team Alpha", "Juanito Cruz", 8, "Male", "Rescued", "Mild hypothermia, reunited with mother", "Zone 4 - Chapel Area", 6.9250, 122.0795],
+            ["R-03", "Rescue Team Beta", "Amara Climaco", 72, "Female", "Missing", "Swept away by current, search ongoing", "Zone 1 - Riverbank", 6.9240, 122.0770]
+          ];
+          const stmt = db.prepare(`
+            INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          seedLogs.forEach((log) => {
+            stmt.run(log);
+          });
+          stmt.finalize();
+          console.log("Seeded casualty logs table.");
+        }
+      });
+    });
   });
 }
 
@@ -476,6 +513,59 @@ app.post("/api/auth/reset-password", async (req, res) => {
       }
     }
   );
+});
+
+/* ─── Casualty / Victim Logs API ─── */
+app.get("/api/logs/casualties", (req, res) => {
+  db.all("SELECT * FROM casualty_logs ORDER BY created_at DESC", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+app.post("/api/logs/casualties", (req, res) => {
+  const { rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude } = req.body;
+
+  if (!victim_name || !status) {
+    return res.status(400).json({ message: "Victim name and status are required fields." });
+  }
+
+  db.run(
+    `INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      rescuer_id || null,
+      rescuer_name || null,
+      victim_name,
+      age ? parseInt(age) : null,
+      gender || "Unknown",
+      status,
+      injury_details || null,
+      location || null,
+      latitude ? parseFloat(latitude) : null,
+      longitude ? parseFloat(longitude) : null
+    ],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to insert log", error: err.message });
+      }
+      res.status(201).json({
+        message: "Casualty/Victim log recorded successfully",
+        logId: this.lastID
+      });
+    }
+  );
+});
+
+app.post("/api/logs/casualties/clear", (req, res) => {
+  db.run("DELETE FROM casualty_logs", [], (err) => {
+    if (err) {
+      return res.status(500).json({ message: "Failed to clear casualty logs", error: err.message });
+    }
+    res.json({ message: "All casualty logs cleared." });
+  });
 });
 
 app.listen(PORT, () => {
