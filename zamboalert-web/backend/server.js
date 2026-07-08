@@ -62,9 +62,15 @@ function createTables() {
         verification_expires INTEGER,
         two_fa_code TEXT,
         two_fa_expires INTEGER,
+        phone_number TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Alter table fallback to add phone_number to existing installations
+    db.run("ALTER TABLE users ADD COLUMN phone_number TEXT", (err) => {
+      // Ignore errors (e.g. if the column already exists)
+    });
 
     // QR Sessions table (for fallback/local mode)
     db.run(`
@@ -132,7 +138,7 @@ function generateCode() {
 
 // 1. REGISTER
 app.post("/api/auth/register", async (req, res) => {
-  const { email, firstName, lastName } = req.body;
+  const { email, firstName, lastName, phoneNumber } = req.body;
 
   if (!email || !firstName || !lastName) {
     return res.status(400).json({ message: "All fields are required" });
@@ -158,8 +164,8 @@ app.post("/api/auth/register", async (req, res) => {
       const expires = Date.now() + 15 * 60 * 1000; // 15 mins
 
       db.run(
-        "INSERT INTO users (email, username, password, verification_code, verification_expires) VALUES (?, ?, ?, ?, ?)",
-        [email, username, hashedPassword, code, expires],
+        "INSERT INTO users (email, username, password, verification_code, verification_expires, phone_number) VALUES (?, ?, ?, ?, ?, ?)",
+        [email, username, hashedPassword, code, expires, phoneNumber || null],
         async function (insertErr) {
           if (insertErr) {
             return res.status(500).json({ message: "Failed to create user" });

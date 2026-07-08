@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { db } from "../firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { Shield, Mail, CheckCircle2, ShieldAlert, Loader2, KeyRound } from "lucide-react";
+import { Mail, CheckCircle2, ShieldAlert, Loader2, KeyRound } from "lucide-react";
 
 export default function VerifyQrPage() {
   const [searchParams] = useSearchParams();
@@ -103,7 +103,6 @@ export default function VerifyQrPage() {
       {/* Header */}
       <header className="px-6 py-4 border-b border-rose-100 bg-white flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-          <Shield className="text-red-700 h-6 w-6" />
           <span className="font-bold text-lg text-slate-900 mt-1">ZamboAlert Guard</span>
         </div>
         <span className="text-[10px] font-mono bg-red-50 text-red-700 px-2.5 py-1 rounded-full font-semibold border border-red-100">
@@ -114,7 +113,7 @@ export default function VerifyQrPage() {
       {/* Main Container */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-red-700 to-rose-600" />
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-red-700 to-rose-600" />
 
           {status === "idle" && (
             <div>

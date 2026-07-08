@@ -11,7 +11,6 @@ import {
   X,
   ChevronRight,
   Activity,
-  Shield,
   ShieldCheck,
   Navigation,
   Zap,
@@ -621,10 +620,6 @@ export default function Home() {
       {/* ── Header ── */}
       <header className="flex items-center gap-4 px-5 py-3 border-b border-red-100 bg-white sticky top-0 z-40 shadow-sm shadow-red-50">
         <div className="flex items-center gap-2.5">
-          <div className="relative">
-            <Shield size={22} className="text-red-800" />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-800 rounded-full animate-pulse" />
-          </div>
           <div>
             <div className="text-base font-bold tracking-tight text-red-800 leading-none">ZamboAlert</div>
             <div className="text-[9px] font-mono text-red-400 tracking-widest">BARANGAY MONITORING SYSTEM</div>
