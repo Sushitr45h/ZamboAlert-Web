@@ -475,8 +475,7 @@ export default function LoginPage() {
         </div>
         <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-red-700 animate-pulse" />
-            LOCAL AP ACTIVE
+    
           </span>
         </div>
       </header>

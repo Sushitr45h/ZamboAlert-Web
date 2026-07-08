@@ -365,7 +365,7 @@ function BroadcastModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-900/30 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm">
       <div className="bg-white border border-red-200 rounded-sm w-full max-w-lg mx-4 shadow-2xl shadow-red-100">
         <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
           <div className="flex items-center gap-2">
@@ -441,7 +441,7 @@ function DispatchModal({
   const available = rescuers.filter((r) => r.status === "available");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-red-900/30 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/30 backdrop-blur-sm">
       <div className="bg-white border border-red-200 rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-red-100">
         <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
           <div className="flex items-center gap-2">
