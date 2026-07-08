@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
-import { db } from "../firebase";
-import { doc, onSnapshot } from "firebase/firestore";
 
 import {
   Lock,
@@ -12,29 +9,12 @@ import {
   Clock,
   Fingerprint,
   Smartphone,
-  RefreshCw,
   CheckCircle2,
-  Loader2,
   Eye,
   EyeOff,
 } from "lucide-react";
 
-/* ─────────────────────────────────────────────────────────────
-   Google-colour palette helper (used in QR panel)
-───────────────────────────────────────────────────────────── */
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    <path fill="none" d="M0 0h48v48H0z" />
-  </svg>
-);
-
-/* QR phases:  idle → waiting → scanned → verifying → done */
-const QR_PHASE = { IDLE: "idle", WAITING: "waiting", SCANNED: "scanned", VERIFYING: "verifying", DONE: "done", EXPIRED: "expired" };
-const QR_TTL = 60; // seconds before QR expires
+/* Credentials login only */
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -69,160 +49,7 @@ export default function LoginPage() {
   const timerRef = useRef(null);
   const notificationTimeoutRef = useRef(null);
 
-  /* ── QR-login states ── */
-  const [qrPhase, setQrPhase] = useState(QR_PHASE.IDLE);
-  const [qrToken, setQrToken] = useState("");
-  const [qrCountdown, setQrCountdown] = useState(QR_TTL);
-  const [qrGmailUser, setQrGmailUser] = useState("");
-  const qrTimerRef = useRef(null);
-  const pollingIntervalRef = useRef(null);
-  const unsubscribeFirestoreRef = useRef(null);
-
-  /* ─── Helpers ─────────────────────────────────────── */
-  const generateQrToken = useCallback(() => {
-    const rand = () => Math.random().toString(36).slice(2);
-    return `${rand()}-${rand()}-${Date.now()}`;
-  }, []);
-
-  const handleQrLogin = useCallback(async (token) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/qr-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: token }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setQrPhase(QR_PHASE.DONE);
-        setTimeout(() => {
-          localStorage.setItem("zamboalert_auth", JSON.stringify({
-            token: data.token,
-            user: data.user,
-            expiry: data.expiry,
-          }));
-          navigate("/dashboard");
-        }, 1800);
-      } else {
-        showNotificationMsg(data.message || "QR Code verification failed.", "error");
-        setQrPhase(QR_PHASE.EXPIRED);
-      }
-    } catch (err) {
-      showNotificationMsg("Connection to authentication server failed.", "error");
-      setQrPhase(QR_PHASE.EXPIRED);
-    }
-  }, [navigate]);
-
-  const startQrSession = useCallback(async () => {
-    // Clear any existing listeners
-    clearInterval(qrTimerRef.current);
-    clearInterval(pollingIntervalRef.current);
-    if (unsubscribeFirestoreRef.current) {
-      unsubscribeFirestoreRef.current();
-    }
-
-    const token = generateQrToken();
-    setQrToken(token);
-    setQrPhase(QR_PHASE.WAITING);
-    setQrCountdown(QR_TTL);
-    setQrGmailUser("");
-
-    try {
-      // 1. Register the session in the backend
-      await fetch(`${BACKEND_URL}/api/auth/qr-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: token }),
-      });
-
-      // 2. Start Countdown Timer
-      qrTimerRef.current = setInterval(() => {
-        setQrCountdown((c) => {
-          if (c <= 1) {
-            clearInterval(qrTimerRef.current);
-            clearInterval(pollingIntervalRef.current);
-            if (unsubscribeFirestoreRef.current) unsubscribeFirestoreRef.current();
-            setQrPhase(QR_PHASE.EXPIRED);
-            return 0;
-          }
-          return c - 1;
-        });
-      }, 1000);
-
-      // 3. Connect real-time Firebase listener
-      if (db) {
-        try {
-          unsubscribeFirestoreRef.current = onSnapshot(doc(db, "qr_sessions", token), (snapshot) => {
-            const data = snapshot.data();
-            if (data) {
-              if (data.status === "scanned") {
-                setQrPhase(QR_PHASE.SCANNED);
-              } else if (data.status === "verified") {
-                clearInterval(qrTimerRef.current);
-                clearInterval(pollingIntervalRef.current);
-                setQrGmailUser(data.email);
-                setQrPhase(QR_PHASE.VERIFYING);
-                handleQrLogin(token);
-              }
-            }
-          });
-        } catch (fbErr) {
-          console.warn("Firestore listener failed. Resorting to polling fallback.", fbErr);
-        }
-      }
-
-      // 4. Polling fallback (ensures reliability if Firestore is not yet configured)
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/auth/qr-status?sessionId=${token}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.status === "scanned") {
-              setQrPhase(QR_PHASE.SCANNED);
-            } else if (data.status === "verified") {
-              clearInterval(qrTimerRef.current);
-              clearInterval(pollingIntervalRef.current);
-              if (unsubscribeFirestoreRef.current) unsubscribeFirestoreRef.current();
-              setQrGmailUser(data.email);
-              setQrPhase(QR_PHASE.VERIFYING);
-              handleQrLogin(token);
-            }
-          }
-        } catch (pollErr) {
-          console.log("Polling status check failed:", pollErr.message);
-        }
-      }, 2500);
-
-    } catch (err) {
-      console.error("Failed to register QR session:", err);
-      showNotificationMsg("Failed to connect to authentication node.", "error");
-      setQrPhase(QR_PHASE.EXPIRED);
-    }
-  }, [generateQrToken, handleQrLogin]);
-
-  /* start QR session when view is "login" */
-  useEffect(() => {
-    if (view === "login") {
-      if (qrPhase === QR_PHASE.IDLE) {
-        startQrSession();
-      }
-    } else {
-      clearInterval(qrTimerRef.current);
-      clearInterval(pollingIntervalRef.current);
-      if (unsubscribeFirestoreRef.current) {
-        unsubscribeFirestoreRef.current();
-      }
-      setQrPhase(QR_PHASE.IDLE);
-    }
-  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* cleanup on unmount */
-  useEffect(() => () => {
-    clearInterval(qrTimerRef.current);
-    clearInterval(pollingIntervalRef.current);
-    if (unsubscribeFirestoreRef.current) {
-      unsubscribeFirestoreRef.current();
-    }
-  }, []);
+  /* QR login disabled */
 
 
   /* ─── credential-login side-effects ─────────────── */
@@ -398,150 +225,65 @@ export default function LoginPage() {
     }
   };
 
-  /* ─── QR panel sub-component (inline) ──────────── */
-  const QrLoginPanel = () => {
-    /* The value encoded in the QR is the verification route URL */
-    const qrValue = `${window.location.origin}/verify-qr?sessionId=${qrToken}`;
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
 
-    return (
-      <div className="flex flex-col items-center gap-0 w-full">
-        {/* ── WAITING: show QR (compact horizontal layout) ── */}
-        {qrPhase === QR_PHASE.WAITING && (
-          <div className="w-full flex flex-col items-center gap-3">
-            <div className="flex flex-row items-center gap-4 w-full bg-slate-50 p-3 rounded-xl border border-slate-100">
-              {/* Left side: QR Code */}
-              <div className="relative p-2 bg-white border border-slate-200 rounded-lg shadow-sm flex-shrink-0">
-                <QRCodeSVG
-                  value={qrValue}
-                  size={100}
-                  level="H"
-                  includeMargin={false}
-                  fgColor="#0f172a"
-                  bgColor="#ffffff"
-                  imageSettings={{
-                    src: "data:image/svg+xml;base64," + btoa(`
-                      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'>
-                        <circle cx='24' cy='24' r='24' fill='%23ffffff'/>
-                        <path fill='%23EA4335' d='M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z'/>
-                        <path fill='%234285F4' d='M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z'/>
-                        <path fill='%23FBBC05' d='M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z'/>
-                        <path fill='%2334A853' d='M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z'/>
-                      </svg>`),
-                    x: undefined,
-                    y: undefined,
-                    height: 20,
-                    width: 20,
-                    excavate: true,
-                  }}
-                />
-                {/* corner brackets */}
-                {["top-0 left-0 border-t-2 border-l-2", "top-0 right-0 border-t-2 border-r-2",
-                  "bottom-0 left-0 border-b-2 border-l-2", "bottom-0 right-0 border-b-2 border-r-2"]
-                  .map((cls, i) => (
-                    <span key={i} className={`absolute ${cls} border-red-700 w-3 h-3 rounded-sm`} />
-                  ))}
-              </div>
-
-              {/* Right side: Info and Countdown */}
-              <div className="flex-1 flex flex-col justify-center min-w-0">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <GoogleIcon />
-                  <span className="text-xs font-bold text-slate-800">Scan & Sign In</span>
-                </div>
-                <p className="text-[11px] text-slate-500 leading-snug mb-2">
-                  Scan with a mobile device using your official Gmail.
-                </p>
-                
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-white border border-slate-100 rounded-md py-1 px-2 w-fit">
-                  <Clock className="h-3 w-3 text-red-700" />
-                  <span>
-                    Expires:{" "}
-                    <span className={`font-mono font-bold ${qrCountdown <= 15 ? "text-red-700" : "text-slate-700"}`}>
-                      {qrCountdown}s
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Demo simulate scan link */}
-            <button
-              onClick={() => {
-                window.open(`/verify-qr?sessionId=${qrToken}`, "_blank");
-              }}
-              className="text-[10px] text-slate-400 underline underline-offset-2 hover:text-slate-600 transition-colors cursor-pointer bg-transparent border-0 font-medium"
-            >
-              ▶ Simulate mobile scan (opens in new tab)
-            </button>
-          </div>
-        )}
-
-        {/* ── SCANNED ── */}
-        {qrPhase === QR_PHASE.SCANNED && (
-          <div className="flex flex-col items-center gap-3 py-6 animate-pulse-once">
-            <div className="w-16 h-16 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
-              <Smartphone className="h-8 w-8 text-blue-500" />
-            </div>
-            <p className="text-sm font-bold text-slate-800">QR Code Scanned!</p>
-            <p className="text-xs text-slate-500 text-center max-w-[280px]">
-              Waiting for official account selection on your mobile device…
-            </p>
-            <Loader2 className="h-5 w-5 text-blue-500 animate-spin mt-1" />
-          </div>
-        )}
-
-        {/* ── VERIFYING ── */}
-        {qrPhase === QR_PHASE.VERIFYING && (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <div className="w-16 h-16 rounded-full bg-yellow-50 border border-yellow-200 flex items-center justify-center">
-              <GoogleIcon />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-bold text-slate-800">Google Account Detected</p>
-              <p className="text-xs text-blue-600 font-mono mt-0.5">{qrGmailUser}</p>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-              <Loader2 className="h-4 w-4 text-red-700 animate-spin" />
-              Verifying credentials…
-            </div>
-          </div>
-        )}
-
-        {/* ── DONE ── */}
-        {qrPhase === QR_PHASE.DONE && (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-            </div>
-            <p className="text-sm font-bold text-green-700">Authentication Successful</p>
-            <p className="text-xs text-slate-500 text-center">
-              Signed in as <span className="font-mono text-blue-600">{qrGmailUser}</span>
-            </p>
-            <p className="text-[10px] text-slate-400">Redirecting to dashboard…</p>
-          </div>
-        )}
-
-        {/* ── EXPIRED ── */}
-        {qrPhase === QR_PHASE.EXPIRED && (
-          <div className="flex flex-col items-center gap-2 py-3 w-full bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <div className="w-10 h-10 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-rose-500" />
-            </div>
-            <p className="text-xs font-bold text-slate-800">QR Code Expired</p>
-            <p className="text-[10px] text-slate-500 text-center max-w-[240px]">
-              The QR code timed out. Please refresh to scan.
-            </p>
-            <button
-              onClick={startQrSession}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-800 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer border-0 mt-1"
-            >
-              <RefreshCw className="h-3 w-3" /> Refresh QR Code
-            </button>
-          </div>
-        )}
-      </div>
-    );
+      if (response.ok) {
+        showNotificationMsg("Password reset code sent to your email.", "success");
+        setView("reset_password");
+        setVerificationCode("");
+        setPassword("");
+        setConfirmPassword("");
+      } else {
+        showNotificationMsg(data.message || "Failed to request password reset", "error");
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
+    }
   };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      showNotificationMsg("Passwords do not match!", "error");
+      return;
+    }
+    if (strength.score < 3) {
+      showNotificationMsg("Password is too weak. Please ensure it is at least medium strength.", "error");
+      return;
+    }
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: verificationCode, newPassword: password }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotificationMsg("Password reset successfully! You can now log in.", "success");
+        setView("login");
+        setEmail("");
+        setUsername("");
+        setPassword("");
+        setConfirmPassword("");
+        setVerificationCode("");
+      } else {
+        showNotificationMsg(data.message || "Failed to reset password", "error");
+      }
+    } catch (err) {
+      showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
+    }
+  };
+
+  /* QR panel removed */
 
 
   /* ════════════════════════════════════════════════════
@@ -594,92 +336,75 @@ export default function LoginPage() {
           {/* LOGIN */}
           {view === "login" && (
             <div>
-              {/* If QR is in active verification phase, only show verification status */}
-              {[QR_PHASE.SCANNED, QR_PHASE.VERIFYING, QR_PHASE.DONE].includes(qrPhase) ? (
-                <div className="py-4">
-                  <QrLoginPanel />
-                </div>
-              ) : (
-                /* Otherwise, show standard login form + QR code at the bottom */
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
-                  
-                  </h2>
-
-                  <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <input
-                          type="email"
-                          required
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          placeholder="official@barangay.gov.ph"
-                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                        <input
-                          type={showLoginPassword ? "text" : "password"}
-                          required
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowLoginPassword((v) => !v)}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
-                          aria-label={showLoginPassword ? "Hide password" : "Show password"}
-                        >
-                          {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-
-                      </div>
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors shadow-md shadow-red-700/10 cursor-pointer"
-                    >
-                      SIGN IN
-                    </button>
-                  </form>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 text-center text-xs text-slate-500">
-                    New official?{" "}
-                    <button
-                      onClick={() => setView("register")}
-                      className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
-                    >
-                      Register Account
-                    </button>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="official@barangay.gov.ph"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
                   </div>
-
-                  {/* Divider */}
-                  <div className="relative flex py-4 items-center">
-                    <div className="flex-grow border-t border-slate-200"></div>
-                    <span className="flex-shrink mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                      Or Scan QR Code
-                    </span>
-                    <div className="flex-grow border-t border-slate-200"></div>
-                  </div>
-
-                  {/* QR Code Panel */}
-                  <QrLoginPanel />
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type={showLoginPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((v) => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
+                      aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                    >
+                      {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setView("forgot_password"); setEmail(""); }}
+                      className="text-xs text-red-700 hover:underline bg-transparent border-0 cursor-pointer p-0 font-medium"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+
+                  </div>
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors shadow-md shadow-red-700/10 cursor-pointer"
+                >
+                  SIGN IN
+                </button>
+              </form>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 text-center text-xs text-slate-500">
+                New official?{" "}
+                <button
+                  onClick={() => setView("register")}
+                  className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                >
+                  Register Account
+                </button>
+              </div>
             </div>
           )}
 
@@ -882,6 +607,183 @@ export default function LoginPage() {
 
               <div className="text-xs text-slate-400">
                 IP Logged: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-700 font-mono">192.168.1.100</code>
+              </div>
+            </div>
+          )}
+
+          {/* FORGOT PASSWORD */}
+          {view === "forgot_password" && (
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-2">
+                <Lock className="text-red-700 h-4.5 w-4.5" /> Forgot Password
+              </h2>
+              <p className="text-xs text-slate-500 mb-5">Enter your official email address and we'll send you a password reset verification code.</p>
+
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                    Official Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="official@barangay.gov.ph"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer"
+                >
+                  SEND RESET CODE
+                </button>
+              </form>
+
+              <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+                Remember your password?{" "}
+                <button
+                  type="button"
+                  onClick={() => setView("login")}
+                  className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* RESET PASSWORD */}
+          {view === "reset_password" && (
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-2">
+                <Lock className="text-red-700 h-4.5 w-4.5" /> Reset Password
+              </h2>
+              <p className="text-xs text-slate-500 mb-5">Enter the verification code sent to {email} and choose a new password.</p>
+
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1 text-center">
+                    6-Digit Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                    className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 text-center font-mono tracking-widest text-lg text-slate-900 placeholder:text-slate-300 outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Indicator */}
+                  {password.length > 0 && (
+                    <div className="mt-2 space-y-1.5 bg-slate-50 p-2.5 rounded border border-slate-100 text-left">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-medium">Strength:</span>
+                        <span className={`font-semibold ${
+                          strength.score <= 2 ? "text-red-700" : strength.score <= 4 ? "text-amber-600" : "text-green-600"
+                        }`}>{strength.label}</span>
+                      </div>
+                      <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden flex gap-0.5">
+                        <div className={`h-full ${strength.color}`} style={{ width: `${(strength.score / 5) * 100}%` }}></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.length ? "text-green-500" : "text-slate-300"}`} />
+                          <span>8+ Characters</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.upper ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Uppercase letter</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.lower ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Lowercase letter</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.number ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Number</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.special ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Special char</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer"
+                >
+                  RESET PASSWORD
+                </button>
+              </form>
+
+              <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+                Cancel resetting?{" "}
+                <button
+                  type="button"
+                  onClick={() => setView("login")}
+                  className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                >
+                  Back to Sign In
+                </button>
               </div>
             </div>
           )}

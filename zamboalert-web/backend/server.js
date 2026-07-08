@@ -72,15 +72,7 @@ function createTables() {
       // Ignore errors (e.g. if the column already exists)
     });
 
-    // QR Sessions table (for fallback/local mode)
-    db.run(`
-      CREATE TABLE IF NOT EXISTS qr_sessions (
-        session_id TEXT PRIMARY KEY,
-        status TEXT NOT NULL,
-        email TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    // QR Sessions table removed
   });
 }
 
@@ -396,193 +388,94 @@ app.post("/api/auth/resend-code", (req, res) => {
   });
 });
 
-/* ─── QR Code Firebase & SQLite verification API routes ─── */
+/* QR Code verification API routes removed */
 
-// 1. Register a new QR session
-app.post("/api/auth/qr-session", async (req, res) => {
-  const { sessionId } = req.body;
-  if (!sessionId) {
-    return res.status(400).json({ message: "Session ID is required" });
+// 6. FORGOT PASSWORD
+app.post("/api/auth/forgot-password", (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
   }
 
-  // If Firebase Firestore is enabled, optionally create a placeholder there too
-  if (firestoreDb) {
-    try {
-      await firestoreDb.collection("qr_sessions").doc(sessionId).set({
-        status: "waiting",
-        createdAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Could not register session in Firestore:", e.message);
-    }
-  }
-
-  // Register in local SQLite database as fallback
-  db.run(
-    "INSERT OR REPLACE INTO qr_sessions (session_id, status) VALUES (?, ?)",
-    [sessionId, "waiting"],
-    (err) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to store session in database" });
-      }
-      res.status(201).json({ message: "QR Session registered" });
-    }
-  );
-});
-
-// 2. Poll QR session status (for fallback mode when Firestore websocket listeners are offline/not set up)
-app.get("/api/auth/qr-status", (req, res) => {
-  const { sessionId } = req.query;
-  if (!sessionId) {
-    return res.status(400).json({ message: "Session ID is required" });
-  }
-
-  db.get("SELECT status, email FROM qr_sessions WHERE session_id = ?", [sessionId], (err, row) => {
+  db.get("SELECT id, username, email FROM users WHERE email = ?", [email], async (err, user) => {
     if (err) return res.status(500).json({ message: "Database query error" });
-    if (!row) return res.status(404).json({ message: "Session not found" });
+    if (!user) return res.status(404).json({ message: "No official account registered with this email." });
 
-    res.json({
-      status: row.status,
-      email: row.email,
-    });
+    const code = generateCode();
+    const expires = Date.now() + 15 * 60 * 1000; // 15 mins
+
+    db.run(
+      "UPDATE users SET verification_code = ?, verification_expires = ? WHERE id = ?",
+      [code, expires, user.id],
+      async (updateErr) => {
+        if (updateErr) return res.status(500).json({ message: "Failed to generate reset code" });
+
+        const subject = "Reset your ZamboAlert Password";
+        const text = `Your password reset code is: ${code}. It expires in 15 minutes.`;
+        const html = `
+          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f1f1f1; border-radius: 8px; max-width: 500px; margin: auto;">
+            <h2 style="color: #b91c1c; text-align: center;">ZamboAlert Security</h2>
+            <p>Hello <strong>${user.username}</strong>,</p>
+            <p>We received a request to reset your password. Use the following code to complete the reset:</p>
+            <div style="font-size: 24px; font-weight: bold; text-align: center; padding: 15px; background-color: #fef2f2; border: 1px dashed #f87171; color: #b91c1c; margin: 20px 0; border-radius: 4px; letter-spacing: 4px;">
+              ${code}
+            </div>
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">This code will expire in 15 minutes. If you did not request this, you can ignore this email.</p>
+          </div>
+        `;
+
+        await sendMail(user.email, subject, text, html);
+
+        res.json({
+          message: "Password reset code has been sent to your email.",
+          email: user.email
+        });
+      }
+    );
   });
 });
 
-// 3. Simulated/mobile node callback to verify QR (for sandbox/demo purposes)
-app.post("/api/auth/qr-simulate-verify", (req, res) => {
-  const { sessionId, email } = req.body;
-  if (!sessionId || !email) {
-    return res.status(400).json({ message: "Session ID and email are required" });
+// 7. RESET PASSWORD
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { email, code, newPassword } = req.body;
+
+  if (!email || !code || !newPassword) {
+    return res.status(400).json({ message: "All fields are required" });
   }
 
-  // If Firebase Firestore is enabled, update it
-  if (firestoreDb) {
-    try {
-      firestoreDb.collection("qr_sessions").doc(sessionId).update({
-        status: "verified",
-        email: email,
-        verifiedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Could not update session in Firestore:", e.message);
-    }
-  }
+  db.get(
+    "SELECT id, verification_code, verification_expires FROM users WHERE email = ?",
+    [email],
+    async (err, user) => {
+      if (err) return res.status(500).json({ message: "Database query error" });
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-  db.run(
-    "UPDATE qr_sessions SET status = 'verified', email = ? WHERE session_id = ?",
-    [email, sessionId],
-    (err) => {
-      if (err) return res.status(500).json({ message: "Failed to verify session locally" });
-      res.json({ message: "Session verified successfully" });
-    }
-  );
-});
-
-// 4. Secure QR Login verification & Token issuing
-app.post("/api/auth/qr-login", async (req, res) => {
-  const { sessionId } = req.body;
-
-  if (!sessionId) {
-    return res.status(400).json({ message: "Session ID is required" });
-  }
-
-  let verifiedEmail = null;
-
-  // Attempt to check Firebase Firestore first
-  if (firestoreDb) {
-    try {
-      const docSnap = await firestoreDb.collection("qr_sessions").doc(sessionId).get();
-      if (docSnap.exists) {
-        const data = docSnap.data();
-        if (data.status === "verified") {
-          verifiedEmail = data.email;
-        }
+      if (user.verification_code !== code) {
+        return res.status(400).json({ message: "Invalid reset code" });
       }
-    } catch (e) {
-      console.warn("Error reading from Firestore. Checking local database fallback...", e.message);
-    }
-  }
 
-  // If not found in Firestore or Firestore is disabled, check local database
-  if (!verifiedEmail) {
-    await new Promise((resolve) => {
-      db.get("SELECT status, email FROM qr_sessions WHERE session_id = ?", [sessionId], (err, row) => {
-        if (!err && row && row.status === "verified") {
-          verifiedEmail = row.email;
-        }
-        resolve();
-      });
-    });
-  }
+      if (Date.now() > user.verification_expires) {
+        return res.status(400).json({ message: "Reset code has expired" });
+      }
 
-  if (!verifiedEmail) {
-    return res.status(400).json({ message: "QR Code session has not been verified yet." });
-  }
+      try {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-  // Issue the JWT token for the authenticated user
-  db.get("SELECT username, email, is_verified FROM users WHERE email = ?", [verifiedEmail], (err, user) => {
-    if (err) return res.status(500).json({ message: "Database query error" });
-    
-    // Auto-create user if they logged in with verified official Google account but don't exist yet
-    if (!user) {
-      const defaultUsername = verifiedEmail.split("@")[0];
-      const placeholderPass = Math.random().toString(36).slice(-8); // placeholder password
-      db.run(
-        "INSERT INTO users (email, username, password, is_verified) VALUES (?, ?, ?, 1)",
-        [verifiedEmail, defaultUsername, placeholderPass],
-        function (insertErr) {
-          if (insertErr) {
-            // Username may clash, generate a random number suffix
-            const uniqUsername = `${defaultUsername}_${Math.floor(Math.random() * 1000)}`;
-            db.run(
-              "INSERT INTO users (email, username, password, is_verified) VALUES (?, ?, ?, 1)",
-              [verifiedEmail, uniqUsername, placeholderPass],
-              function (retryErr) {
-                if (retryErr) return res.status(500).json({ message: "Failed to auto-register node user" });
-                
-                const token = jwt.sign(
-                  { sub: uniqUsername, email: verifiedEmail, role: "barangay_official" },
-                  JWT_SECRET,
-                  { expiresIn: "1h" }
-                );
-                return res.json({
-                  message: "Logged in via Google QR",
-                  token,
-                  user: uniqUsername,
-                  expiry: Date.now() + 60 * 60 * 1000,
-                });
-              }
-            );
-          } else {
-            const token = jwt.sign(
-              { sub: defaultUsername, email: verifiedEmail, role: "barangay_official" },
-              JWT_SECRET,
-              { expiresIn: "1h" }
-            );
-            res.json({
-              message: "Logged in via Google QR",
-              token,
-              user: defaultUsername,
-              expiry: Date.now() + 60 * 60 * 1000,
-            });
+        db.run(
+          "UPDATE users SET password = ?, verification_code = NULL, verification_expires = NULL, is_verified = 1 WHERE id = ?",
+          [hashedPassword, user.id],
+          (updateErr) => {
+            if (updateErr) return res.status(500).json({ message: "Failed to reset password" });
+            res.json({ message: "Password has been reset successfully. You can now log in." });
           }
-        }
-      );
-    } else {
-      // User exists, issue token
-      const token = jwt.sign(
-        { sub: user.username, email: user.email, role: "barangay_official" },
-        JWT_SECRET,
-        { expiresIn: "1h" }
-      );
-      res.json({
-        message: "Logged in via Google QR",
-        token,
-        user: user.username,
-        expiry: Date.now() + 60 * 60 * 1000,
-      });
+        );
+      } catch (hashErr) {
+        res.status(500).json({ message: "Error hashing new password" });
+      }
     }
-  });
+  );
 });
 
 app.listen(PORT, () => {
