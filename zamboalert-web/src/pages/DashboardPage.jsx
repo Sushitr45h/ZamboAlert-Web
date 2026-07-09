@@ -814,69 +814,47 @@ function TacticalMap({
 
       {/* Legend */}
       <div
-        className="absolute bottom-2 left-2 z-[1000] flex flex-col gap-1 text-[9px] font-mono transition-all duration-300 bg-white/90 backdrop-blur-xs rounded border border-slate-200/50 shadow-xs"
-        style={{ color: "#475569" }}
+        className="absolute bottom-2 left-2 z-[1000] flex flex-col gap-1 text-[9px] font-mono bg-white/60 backdrop-blur-md rounded border border-slate-200/40 shadow-sm p-1.5"
+        style={{ color: "#1e293b" }}
       >
-        {!isLegendExpanded ? (
-          <button
-            onClick={() => setIsLegendExpanded(true)}
-            className="flex items-center gap-1.5 p-1.5 hover:bg-slate-100 rounded text-slate-700 transition-colors cursor-pointer"
-            title="Show Legend"
-          >
-            <Layers size={10} className="text-slate-500" />
-            <span className="font-semibold text-[8px] tracking-wider">LEGEND</span>
-          </button>
-        ) : (
-          <div className="p-1.5 flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200/50 pb-1 mb-1 font-semibold text-slate-800">
-              <span className="flex items-center gap-1 text-[8px] tracking-wider">
-                <Layers size={10} />
-                MAP LEGEND
-              </span>
-              <button
-                onClick={() => setIsLegendExpanded(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                title="Hide Legend"
-              >
-                <X size={10} />
-              </button>
+        <div className="flex items-center gap-1 border-b border-slate-200/40 pb-1 mb-1 font-semibold text-slate-900">
+          <Layers size={10} className="text-slate-700" />
+          <span className="text-[8px] tracking-wider">MAP LEGEND</span>
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded-full bg-red-800 border border-red-800 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>SOS</span>
+          SOS ALERT
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded bg-cyan-500 border border-cyan-600 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>R</span>
+          RESCUER UNIT
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded-full bg-amber-500 border border-amber-600 flex items-center justify-center text-[7px] text-white" style={{ lineHeight: '12px' }}>V</span>
+          VICTIM LOG
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3.5 h-3.5 rounded bg-slate-50 border border-slate-400 flex items-center justify-center text-[7.5px] text-slate-700">
+            <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M15 10v11M4 10l8-7 8 7"/></svg>
+          </span>
+          KEY BUILDING
+        </div>
+        {showDetectionWeb && (
+          <>
+            <div className="h-px bg-slate-200/60 my-0.5" />
+            <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+              <span className="w-3 h-3 rounded-full border border-dashed border-red-600/80 bg-red-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              GATEWAY RANGE (BH - 3km DENSE URBAN)
             </div>
-            <div className="flex items-center gap-1.5 font-semibold">
-              <span className="w-3 h-3 rounded-full bg-red-800 border border-red-800 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>SOS</span>
-              SOS ALERT
+            <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+              <span className="w-3 h-3 rounded-full border border-dashed border-cyan-500/80 bg-cyan-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              MOBILE MESH RANGE
             </div>
-            <div className="flex items-center gap-1.5 font-semibold">
-              <span className="w-3 h-3 rounded bg-cyan-500 border border-cyan-600 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>R</span>
-              RESCUER UNIT
+            <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+              <span className="w-3 h-3 rounded-full border border-dashed border-orange-500/80 bg-orange-50/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              RELAY DETECTION ZONE
             </div>
-            <div className="flex items-center gap-1.5 font-semibold">
-              <span className="w-3 h-3 rounded-full bg-amber-500 border border-amber-600 flex items-center justify-center text-[7px] text-white" style={{ lineHeight: '12px' }}>V</span>
-              VICTIM LOG
-            </div>
-            <div className="flex items-center gap-1.5 font-semibold">
-              <span className="w-3.5 h-3.5 rounded bg-slate-50 border border-slate-400 flex items-center justify-center text-[7.5px] text-slate-700">
-                <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 21h18M3 10h18M5 10v11M19 10v11M9 10v11M15 10v11M4 10l8-7 8 7"/></svg>
-              </span>
-              KEY BUILDING
-            </div>
-            {showDetectionWeb && (
-              <>
-                <div className="h-px bg-slate-200/60 my-0.5" />
-                <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-                  <span className="w-3 h-3 rounded-full border border-dashed border-red-600/80 bg-red-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
-                  GATEWAY RANGE (BH - 3km DENSE URBAN)
-                </div>
-                <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-                  <span className="w-3 h-3 rounded-full border border-dashed border-cyan-500/80 bg-cyan-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
-                  MOBILE MESH RANGE
-                </div>
-                <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-                  <span className="w-3 h-3 rounded-full border border-dashed border-orange-500/80 bg-orange-50/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
-                  RELAY DETECTION ZONE
-                </div>
-              </>
-            )}
-          </div>
+          </>
         )}
       </div>
 
