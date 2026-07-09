@@ -124,7 +124,7 @@
   border-top-color: rgba(15, 23, 42, 0.95) !important;
 }
 
-.custom-sos-marker, .custom-rescuer-marker, .custom-casualty-marker {
+.custom-sos-marker, .custom-rescuer-marker, .custom-casualty-marker, .custom-building-marker {
   background: transparent !important;
   border: none !important;
 }

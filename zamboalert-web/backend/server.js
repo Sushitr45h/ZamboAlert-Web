@@ -147,6 +147,33 @@ function createTables() {
         }
       });
     });
+
+    // Settings table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    `, () => {
+      // Seed default settings if empty
+      db.get("SELECT COUNT(*) as count FROM settings", (err, row) => {
+        if (!err && row && row.count === 0) {
+          db.run("INSERT INTO settings (key, value) VALUES ('require_rescuer_approval', '1')");
+          console.log("Seeded default settings.");
+        }
+      });
+    });
+
+    // Alter table to add assigned target columns if they don't exist
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_type TEXT", (err) => {
+      // Ignore error if column already exists
+    });
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_id TEXT", (err) => {
+      // Ignore error if column already exists
+    });
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_name TEXT", (err) => {
+      // Ignore error if column already exists
+    });
   });
 }
 
@@ -628,23 +655,35 @@ app.post("/api/rescuers/register", (req, res) => {
     return res.status(400).json({ message: "Required fields are missing." });
   }
 
-  db.run(
-    `INSERT INTO rescuers (email, first_name, last_name, phone_number, id_type, id_number, is_verified, status)
-     VALUES (?, ?, ?, ?, ?, ?, 0, 'offline')`,
-    [email, first_name, last_name, phone_number || null, id_type, id_number],
-    function (err) {
-      if (err) {
-        if (err.message.includes("UNIQUE")) {
-          return res.status(400).json({ message: "Email is already registered." });
-        }
-        return res.status(500).json({ message: "Failed to register rescuer", error: err.message });
-      }
-      res.status(201).json({
-        message: "Rescuer registered successfully. Pending admin approval.",
-        rescuerId: this.lastID
-      });
+  // Check the settings to determine default is_verified
+  db.get("SELECT value FROM settings WHERE key = 'require_rescuer_approval'", [], (err, row) => {
+    let defaultVerified = 0;
+    if (!err && row) {
+      defaultVerified = row.value === "0" ? 1 : 0;
     }
-  );
+    const defaultStatus = defaultVerified === 1 ? 'available' : 'offline';
+
+    db.run(
+      `INSERT INTO rescuers (email, first_name, last_name, phone_number, id_type, id_number, is_verified, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email, first_name, last_name, phone_number || null, id_type, id_number, defaultVerified, defaultStatus],
+      function (insertErr) {
+        if (insertErr) {
+          if (insertErr.message.includes("UNIQUE")) {
+            return res.status(400).json({ message: "Email is already registered." });
+          }
+          return res.status(500).json({ message: "Failed to register rescuer", error: insertErr.message });
+        }
+        res.status(201).json({
+          message: defaultVerified === 1 
+            ? "Rescuer registered and auto-approved successfully." 
+            : "Rescuer registered successfully. Pending admin approval.",
+          rescuerId: this.lastID,
+          isVerified: defaultVerified === 1
+        });
+      }
+    );
+  });
 });
 
 // Verify/Approve a rescuer
@@ -662,6 +701,104 @@ app.post("/api/rescuers/verify/:id", (req, res) => {
         return res.status(404).json({ message: "Rescuer not found." });
       }
       res.json({ message: "Rescuer verified and approved successfully." });
+    }
+  );
+});
+
+// Reject / Delete a rescuer account
+app.delete("/api/rescuers/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(
+    "DELETE FROM rescuers WHERE id = ?",
+    [id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to delete rescuer", error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ message: "Rescuer not found." });
+      }
+      res.json({ message: "Rescuer account rejected and deleted successfully." });
+    }
+  );
+});
+
+
+// Get all settings
+app.get("/api/settings", (req, res) => {
+  db.all("SELECT * FROM settings", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Failed to fetch settings", error: err.message });
+    }
+    const settingsObj = {};
+    rows.forEach((row) => {
+      if (row.key === "require_rescuer_approval") {
+        settingsObj.requireRescuerApproval = row.value === "1";
+      } else {
+        settingsObj[row.key] = row.value;
+      }
+    });
+    if (settingsObj.requireRescuerApproval === undefined) {
+      settingsObj.requireRescuerApproval = true;
+    }
+    res.json(settingsObj);
+  });
+});
+
+// Update a setting
+app.post("/api/settings", (req, res) => {
+  const { key, value } = req.body;
+
+  if (!key) {
+    return res.status(400).json({ message: "Setting key is required." });
+  }
+
+  const valStr = typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+
+  db.run(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    [key, valStr],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to save setting", error: err.message });
+      }
+      res.json({ message: "Setting saved successfully.", key, value });
+    }
+  );
+});
+
+// Dispatch a rescuer to a target (victim, alert, other rescuer/respondent, or mesh node)
+app.post("/api/rescuers/dispatch", (req, res) => {
+  const { rescuerId, targetType, targetId, targetName } = req.body;
+  if (!rescuerId || !targetType) {
+    return res.status(400).json({ message: "Rescuer ID and Target Type are required." });
+  }
+
+  db.run(
+    "UPDATE rescuers SET status = 'en-route', assigned_target_type = ?, assigned_target_id = ?, assigned_target_name = ? WHERE id = ? OR id_number = ?",
+    [targetType, String(targetId), targetName, rescuerId, rescuerId],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to dispatch rescuer", error: err.message });
+      }
+      res.json({ message: "Rescuer dispatched successfully." });
+    }
+  );
+});
+
+// Resolve a rescuer's dispatch (mark them available again)
+app.post("/api/rescuers/resolve/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(
+    "UPDATE rescuers SET status = 'available', assigned_target_type = NULL, assigned_target_id = NULL, assigned_target_name = NULL WHERE id = ? OR id_number = ?",
+    [id, id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to resolve rescuer dispatch", error: err.message });
+      }
+      res.json({ message: "Rescuer dispatch resolved successfully." });
     }
   );
 });
