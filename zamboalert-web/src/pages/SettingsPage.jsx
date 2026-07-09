@@ -445,13 +445,6 @@ export default function SettingsPage() {
             <span className="text-[10px] font-bold text-slate-700 leading-tight">Barangay Tumaga Control</span>
             <span className="text-[8px] font-mono text-slate-500 tracking-wider">Zamboanga City, PH</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100/80 text-red-700 border border-red-100 hover:border-red-200 text-[10px] font-bold tracking-wider uppercase rounded transition-all cursor-pointer font-mono shadow-xs"
-          >
-            <LogOut size={10} />
-            Logout
-          </button>
         </div>
       </header>
 
@@ -496,6 +489,14 @@ export default function SettingsPage() {
                   </button>
                 );
               })}
+              
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer whitespace-nowrap md:w-full border bg-red-600 hover:bg-red-700 text-white border-red-600 shadow-xs md:mt-2"
+              >
+                <LogOut size={14} className="text-white" />
+                <span>Logout</span>
+              </button>
             </nav>
           </div>
 
