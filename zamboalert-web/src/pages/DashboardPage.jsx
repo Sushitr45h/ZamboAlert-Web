@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Radio,
   Wifi,
@@ -12,6 +14,7 @@ import {
   ChevronRight,
   Activity,
   ShieldCheck,
+  ShieldAlert,
   Navigation,
   Zap,
   PhoneCall,
@@ -21,6 +24,7 @@ import {
   Volume2,
   ClipboardList,
   Plus,
+  Minus,
   Trash2,
   Search,
   RefreshCw,
@@ -228,7 +232,35 @@ function RescuerBadge({ status }) {
   );
 }
 
-// ── Tactical Map ───────────────────────────────────────────────────────────────
+// Seed buildings in Barangay Tumaga, Zamboanga City
+const TUMAGA_BUILDINGS = [
+  { id: "b1", name: "Tumaga Barangay Hall", lat: 6.9235, lng: 122.0780, w: 26, d: 20, h: 36, type: "gov" },
+  { id: "b2", name: "Tumaga Police Outpost", lat: 6.9239, lng: 122.0784, w: 14, d: 14, h: 26, type: "gov" },
+  { id: "b3", name: "Tumaga Elementary School - Bldg A", lat: 6.9248, lng: 122.0768, w: 32, d: 16, h: 22, type: "school" },
+  { id: "b4", name: "Tumaga Elementary School - Bldg B", lat: 6.9244, lng: 122.0766, w: 28, d: 16, h: 22, type: "school" },
+  { id: "b5", name: "Tumaga Covered Gym", lat: 6.9242, lng: 122.0772, w: 36, d: 24, h: 18, type: "court" },
+  { id: "b6", name: "Zamboanga Peninsula Medical Center", lat: 6.9185, lng: 122.0862, w: 42, d: 32, h: 56, type: "medical" },
+  { id: "b7", name: "Tumaga Health Center", lat: 6.9230, lng: 122.0778, w: 18, d: 16, h: 20, type: "medical" },
+  { id: "b8", name: "Tumaga Catholic Chapel", lat: 6.9250, lng: 122.0795, w: 22, d: 32, h: 42, type: "chapel" },
+  { id: "b9", name: "Phoenix Gas Station & Plaza", lat: 6.9212, lng: 122.0750, w: 22, d: 22, h: 16, type: "comm" },
+  { id: "b10", name: "Commercial Center", lat: 6.9208, lng: 122.0745, w: 28, d: 16, h: 28, type: "comm" },
+  { id: "b11", name: "Riverview Subdivision Block A", lat: 6.9265, lng: 122.0720, w: 24, d: 24, h: 24, type: "res" },
+  { id: "b12", name: "Riverview Subdivision Block B", lat: 6.9258, lng: 122.0728, w: 20, d: 20, h: 22, type: "res" },
+  { id: "b13", name: "Villa Teresa Subd Block A", lat: 6.9192, lng: 122.0785, w: 24, d: 24, h: 24, type: "res" },
+  { id: "b14", name: "Villa Teresa Subd Block B", lat: 6.9185, lng: 122.0792, w: 20, d: 24, h: 24, type: "res" },
+  { id: "b15", name: "Riverbank Housing Cluster", lat: 6.9224, lng: 122.0758, w: 16, d: 16, h: 18, type: "res" }
+];
+
+function parseCoordinate(val) {
+  if (val === undefined || val === null) return null;
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[^\d.-]/g, "");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
 
 function TacticalMap({
   alerts,
@@ -239,164 +271,505 @@ function TacticalMap({
   selectedCasualtyId,
   onSelectCasualty,
 }) {
-  return (
-    <div className="relative w-full h-full overflow-hidden rounded-sm" style={{ background: "#fff9f9" }}>
-      {/* Grid */}
-      <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.08 }}>
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#dc2626" strokeWidth="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
+  const [is3D, setIs3D] = useState(false);
+  const [showDetectionWeb, setShowDetectionWeb] = useState(true);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const tileLayerRef = useRef(null);
+  const markersGroupRef = useRef(null);
+  const pathsGroupRef = useRef(null);
 
-      {/* Contour rings */}
-      <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.05 }} viewBox="0 0 100 100" preserveAspectRatio="none">
-        <ellipse cx="50" cy="50" rx="35" ry="25" fill="none" stroke="#dc2626" strokeWidth="0.4" />
-        <ellipse cx="50" cy="50" rx="25" ry="17" fill="none" stroke="#dc2626" strokeWidth="0.4" />
-        <ellipse cx="50" cy="50" rx="15" ry="10" fill="none" stroke="#dc2626" strokeWidth="0.4" />
-      </svg>
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
 
-      {/* Dispatch paths */}
-      {rescuers
-        .filter((r) => r.assignedAlert)
-        .map((r) => {
-          const alert = alerts.find((a) => a.id === r.assignedAlert);
-          if (!alert) return null;
-          return (
-            <svg key={r.id} className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <line
-                x1={r.coords[0]} y1={r.coords[1]}
-                x2={alert.coords[0]} y2={alert.coords[1]}
-                stroke="#dc2626" strokeWidth="0.5" strokeDasharray="2 1.5" opacity="0.4"
-              />
-            </svg>
-          );
-        })}
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      attributionControl: true,
+    }).setView([6.9214, 122.0790], 15);
 
-      {/* SOS markers */}
-      {alerts.map((a) => {
-        const isUnassigned = a.status === "unassigned";
+    mapRef.current = map;
+
+    markersGroupRef.current = L.layerGroup().addTo(map);
+    pathsGroupRef.current = L.layerGroup().addTo(map);
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update Base Layer (Street vs Satellite)
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    if (tileLayerRef.current) {
+      mapRef.current.removeLayer(tileLayerRef.current);
+    }
+
+    const url = is3D
+      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
+
+    const attribution = is3D
+      ? "&copy; Esri &mdash; Source: Esri, USDA, USGS, GeoEye, and the GIS User Community"
+      : "&copy; OpenStreetMap contributors &copy; CARTO";
+
+    tileLayerRef.current = L.tileLayer(url, {
+      attribution,
+      maxZoom: 19,
+    }).addTo(mapRef.current);
+  }, [is3D]);
+
+  // Center view on selected entities
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    let targetCoords = null;
+
+    if (selected) {
+      const a = alerts.find((x) => x.id === selected);
+      if (a) {
+        const lat = parseCoordinate(a.lat || a.latitude);
+        const lng = parseCoordinate(a.lng || a.longitude);
+        if (lat && lng) targetCoords = [lat, lng];
+      }
+    } else if (selectedCasualtyId) {
+      const c = casualties.find((x) => x.id === selectedCasualtyId);
+      if (c) {
+        const lat = parseCoordinate(c.latitude || c.lat);
+        const lng = parseCoordinate(c.longitude || c.lng);
+        if (lat && lng) targetCoords = [lat, lng];
+      }
+    }
+
+    if (targetCoords) {
+      mapRef.current.setView(targetCoords, 16, { animate: true, duration: 1 });
+    }
+  }, [selected, selectedCasualtyId, alerts, casualties]);
+
+  // Update Markers & Paths
+  useEffect(() => {
+    if (!mapRef.current || !markersGroupRef.current || !pathsGroupRef.current) return;
+
+    markersGroupRef.current.clearLayers();
+    pathsGroupRef.current.clearLayers();
+
+    // 1. Draw Buildings
+    TUMAGA_BUILDINGS.forEach((b) => {
+      const getBuildingColor = (type) => {
+        if (type === "gov") return "#0284c7";
+        if (type === "medical") return "#dc2626";
+        if (type === "school" || type === "court") return "#d97706";
+        if (type === "chapel") return "#7c3aed";
+        return "#64748b";
+      };
+
+      const getBuildingBorderColor = (type) => {
+        if (type === "gov") return "#0284c7";
+        if (type === "medical") return "#dc2626";
+        if (type === "school" || type === "court") return "#d97706";
+        if (type === "chapel") return "#7c3aed";
+        return "#475569";
+      };
+
+      const buildingMarker = L.circleMarker([b.lat, b.lng], {
+        radius: Math.max(5, Math.min(10, b.w / 4)),
+        fillColor: getBuildingColor(b.type),
+        color: getBuildingBorderColor(b.type),
+        weight: 1.5,
+        opacity: 0.8,
+        fillOpacity: 0.25,
+      });
+
+      buildingMarker.bindTooltip(
+        `<div style="font-family: monospace; font-size: 9px; padding: 2px;">
+          <strong>${b.name}</strong><br/>
+          <span style="font-size: 7.5px; opacity: 0.8; text-transform: uppercase;">Type: ${b.type}</span>
+        </div>`,
+        {
+          permanent: false,
+          direction: "top",
+          className: "custom-building-tooltip",
+        }
+      );
+
+      buildingMarker.addTo(markersGroupRef.current);
+    });
+
+    // 2. Draw SOS Alerts
+    alerts.forEach((a) => {
+      const lat = parseCoordinate(a.lat || a.latitude);
+      const lng = parseCoordinate(a.lng || a.longitude);
+      if (lat && lng) {
         const isSel = selected === a.id;
-        return (
-          <button
-            key={a.id}
-            onClick={() => onSelect(a.id)}
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group"
-            style={{ left: `${a.coords[0]}%`, top: `${a.coords[1]}%` }}
-          >
-            {isUnassigned && (
-              <span className="absolute w-8 h-8 rounded-full border-2 border-red-600 animate-ping opacity-50" />
-            )}
-            <span
-              className={`relative z-10 flex items-center justify-center w-5 h-5 rounded-full border text-[8px] font-bold font-mono transition-transform ${
-                isSel ? "scale-125" : "group-hover:scale-110"
-              } ${
-                a.status === "unassigned"
-                  ? "bg-red-800 border-red-800 text-white shadow-md shadow-red-200"
-                  : a.status === "assigned"
-                  ? "bg-orange-500 border-orange-600 text-white"
-                  : "bg-red-100 border-red-300 text-red-400"
-              }`}
-            >
+        const isUnassigned = a.status === "unassigned";
+
+        const html = `
+          <div class="relative flex flex-col items-center justify-center">
+            ${isUnassigned ? '<span class="absolute w-8 h-8 rounded-full border-2 border-red-600 animate-ping opacity-60" style="margin-top:-6px;"></span>' : ""}
+            <div class="relative flex items-center justify-center w-6 h-6 rounded-full border text-[8px] font-bold font-mono transition-transform ${
+              isSel ? "scale-125 border-red-500 bg-red-950 text-white shadow-lg font-extrabold" : "bg-red-800 border-red-800 text-white shadow-md"
+            } ${a.status === "assigned" ? "bg-orange-500 border-orange-600 text-white" : ""}">
               SOS
+            </div>
+            <span class="absolute top-7 bg-slate-900 text-white text-[7.5px] px-1 py-0.5 rounded border border-slate-700 font-mono whitespace-nowrap shadow-md z-50">
+              ${a.name}
             </span>
-            <span className="mt-0.5 text-[8px] font-mono text-red-800 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
-              {a.name}
-            </span>
-          </button>
-        );
-      })}
+          </div>
+        `;
 
-      {/* Rescuer markers */}
-      {rescuers.map((r) => (
-        <div
-          key={r.id}
-          className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group"
-          style={{ left: `${r.coords[0]}%`, top: `${r.coords[1]}%` }}
-        >
-          <span
-            className={`relative z-10 flex items-center justify-center w-4 h-4 rounded border text-[7px] font-bold font-mono shadow-sm ${
+        const customIcon = L.divIcon({
+          html: html,
+          className: "custom-sos-marker",
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        });
+
+        const marker = L.marker([lat, lng], { icon: customIcon });
+        marker.on("click", () => {
+          onSelect(a.id);
+        });
+        marker.addTo(markersGroupRef.current);
+      }
+    });
+
+    // 3. Draw Rescuer Units
+    rescuers.forEach((r) => {
+      const lat = parseCoordinate(r.lat || r.latitude);
+      const lng = parseCoordinate(r.lng || r.longitude);
+      if (lat && lng) {
+        const html = `
+          <div class="relative flex flex-col items-center justify-center">
+            <div class="relative flex items-center justify-center w-5 h-5 rounded border text-[8px] font-bold font-mono transition-transform ${
               r.status === "available"
-                ? "bg-white border-red-400 text-red-800"
+                ? "bg-cyan-500 border-cyan-600 text-white shadow-sm"
                 : r.status === "en-route"
-                ? "bg-red-100 border-red-600 text-red-800"
-                : "bg-red-800 border-red-800 text-white"
-            }`}
-          >
-            R
-          </span>
-          <span className="mt-0.5 text-[8px] font-mono text-red-600 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
-            {r.id}
-          </span>
-        </div>
-      ))}
+                ? "bg-orange-500 border-orange-600 text-white shadow-[0_0_6px_rgba(249,115,22,0.3)]"
+                : "bg-red-600 border-red-700 text-white"
+            }">
+              R
+            </div>
+            <span class="absolute top-6 bg-cyan-950 text-cyan-200 text-[7px] px-1 py-px rounded border border-cyan-800 font-mono whitespace-nowrap shadow-sm">
+              ${r.id}
+            </span>
+          </div>
+        `;
 
-      {/* Casualty/Victim markers on tactical map */}
-      {casualties.map((c) => {
-        if (!c.latitude || !c.longitude) return null;
-        // Convert lat/lng to map coordinates mathematically
-        const x = Math.max(10, Math.min(90, ((parseFloat(c.longitude) - 122.0700) / 0.0200) * 100));
-        const y = Math.max(10, Math.min(90, ((6.9300 - parseFloat(c.latitude)) / 0.0200) * 100));
+        const customIcon = L.divIcon({
+          html: html,
+          className: "custom-rescuer-marker",
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+        });
 
+        const marker = L.marker([lat, lng], { icon: customIcon });
+        marker.addTo(markersGroupRef.current);
+      }
+    });
+
+    // 4. Draw Casualties / Victims
+    casualties.forEach((c) => {
+      const lat = parseCoordinate(c.latitude || c.lat);
+      const lng = parseCoordinate(c.longitude || c.lng);
+      if (lat && lng) {
         const isSel = selectedCasualtyId === c.id;
         const statusColors = {
           Injured: "bg-amber-500 border-amber-600 text-white",
           Deceased: "bg-purple-800 border-purple-900 text-white",
-          Missing: "bg-red-600 border-red-700 text-white",
+          Missing: "bg-red-600 border-red-700 text-white animate-pulse",
           Rescued: "bg-green-600 border-green-700 text-white",
         }[c.status] || "bg-slate-500 border-slate-600 text-white";
 
-        return (
-          <button
-            key={`casualty-map-${c.id}`}
-            onClick={() => onSelectCasualty && onSelectCasualty(c.id)}
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group z-20"
-            style={{ left: `${x}%`, top: `${y}%` }}
-          >
-            {isSel && (
-              <span className="absolute w-6 h-6 rounded-full border border-dashed border-red-500 animate-spin" />
-            )}
-            <span
-              className={`relative z-10 flex items-center justify-center w-3.5 h-3.5 rounded-full border text-[8px] font-extrabold font-mono transition-transform ${
-                isSel ? "scale-125" : "group-hover:scale-110"
-              } ${statusColors}`}
-              title={`${c.victim_name} (${c.status})`}
-            >
+        const html = `
+          <div class="relative flex flex-col items-center justify-center">
+            ${isSel ? '<span class="absolute w-6 h-6 rounded-full border border-dashed border-red-600 animate-spin" style="margin-top:-3px;"></span>' : ""}
+            <div class="relative flex items-center justify-center w-4 h-4 rounded-full border text-[8px] font-extrabold font-mono transition-transform ${statusColors}">
               V
+            </div>
+            <span class="absolute top-5 bg-white text-slate-800 text-[7px] px-1 py-px rounded border border-slate-300 font-mono whitespace-nowrap shadow-xs">
+              ${c.victim_name}
             </span>
-            <span className="mt-0.5 text-[8px] font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-red-100 px-1 py-px rounded shadow-sm">
-              {c.victim_name}
-            </span>
-          </button>
-        );
-      })}
+          </div>
+        `;
 
-      {/* Legend */}
-      <div className="absolute bottom-2 left-2 flex flex-col gap-1 text-[9px] font-mono" style={{ color: "#b91c1c" }}>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-red-800 border border-red-800" />
-          UNASSIGNED SOS
+        const customIcon = L.divIcon({
+          html: html,
+          className: "custom-casualty-marker",
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+
+        const marker = L.marker([lat, lng], { icon: customIcon });
+        marker.on("click", () => {
+          if (onSelectCasualty) onSelectCasualty(c.id);
+        });
+        marker.addTo(markersGroupRef.current);
+      }
+    });
+
+    // 1b. Draw Barangay Hall Detection Web
+    if (showDetectionWeb) {
+      const bhCoords = [6.9235, 122.0780]; // Tumaga Barangay Hall
+      
+      // Outer Range Ring (3km - Dense Urban Limit)
+      L.circle(bhCoords, {
+        radius: 3000,
+        color: "#dc2626",
+        weight: 1,
+        dashArray: "3, 9",
+        fillColor: "#dc2626",
+        fillOpacity: 0.02,
+        className: "radar-ring-outer",
+        interactive: false,
+      }).addTo(pathsGroupRef.current);
+
+      // Mid Range Ring (2km - Dense Urban Mid)
+      L.circle(bhCoords, {
+        radius: 2000,
+        color: "#dc2626",
+        weight: 1.2,
+        dashArray: "6, 6",
+        fillColor: "#dc2626",
+        fillOpacity: 0.04,
+        className: "radar-ring-mid",
+        interactive: false,
+      }).addTo(pathsGroupRef.current);
+
+      // Inner Dense Ring (1km - Dense Urban Core)
+      L.circle(bhCoords, {
+        radius: 1000,
+        color: "#dc2626",
+        weight: 1.8,
+        fillColor: "#dc2626",
+        fillOpacity: 0.08,
+        className: "radar-ring-inner",
+        interactive: false,
+      }).addTo(pathsGroupRef.current);
+    }
+
+    // 5. Draw Dispatch paths & Routing Detection Web
+    rescuers
+      .filter((r) => r.assignedAlert)
+      .forEach((r) => {
+        const alert = alerts.find((a) => a.id === r.assignedAlert);
+        if (!alert) return;
+
+        const rLat = parseCoordinate(r.lat || r.latitude);
+        const rLng = parseCoordinate(r.lng || r.longitude);
+        const aLat = parseCoordinate(alert.lat || alert.latitude);
+        const aLng = parseCoordinate(alert.lng || alert.longitude);
+
+        if (rLat && rLng && aLat && aLng) {
+          // Animated polyline representing active rescue route flow
+          const polyline = L.polyline([[rLat, rLng], [aLat, aLng]], {
+            color: "#dc2626",
+            weight: 3,
+            dashArray: "6, 6",
+            opacity: 0.85,
+            className: "routing-line-animated",
+          });
+          polyline.addTo(pathsGroupRef.current);
+
+          if (showDetectionWeb) {
+            // Dynamic coverage web around the Rescuer Unit (120m range)
+            L.circle([rLat, rLng], {
+              radius: 120,
+              color: "#06b6d4",
+              weight: 1.5,
+              dashArray: "4, 4",
+              fillColor: "#06b6d4",
+              fillOpacity: 0.04,
+              className: "rescuer-radar-pulse",
+              interactive: false,
+            }).addTo(pathsGroupRef.current);
+
+            // Dynamic coverage web around the SOS Alert beacon (90m range)
+            L.circle([aLat, aLng], {
+              radius: 90,
+              color: "#ef4444",
+              weight: 1.5,
+              dashArray: "3, 6",
+              fillColor: "#ef4444",
+              fillOpacity: 0.05,
+              className: "alert-radar-pulse",
+              interactive: false,
+            }).addTo(pathsGroupRef.current);
+
+            // Intermediate Mesh relay nodes along the routing line to form a "connection web"
+            const steps = 4;
+            for (let i = 1; i < steps; i++) {
+              const fraction = i / steps;
+              const intLat = rLat + fraction * (aLat - rLat);
+              const intLng = rLng + fraction * (aLng - rLng);
+
+              // Circular coverage pulse for the relay node
+              L.circle([intLat, intLng], {
+                radius: 70,
+                color: "#f97316",
+                weight: 1,
+                dashArray: "2, 4",
+                fillColor: "#f97316",
+                fillOpacity: 0.03,
+                className: "intermediate-mesh-node",
+                interactive: false,
+              }).addTo(pathsGroupRef.current);
+
+              // Core visual dot for the intermediate relay hop
+              L.circleMarker([intLat, intLng], {
+                radius: 3,
+                color: "#f97316",
+                fillColor: "#ffffff",
+                fillOpacity: 1,
+                weight: 1.5,
+                className: "intermediate-mesh-core",
+                interactive: false,
+              }).addTo(pathsGroupRef.current);
+            }
+          }
+        }
+      });
+  }, [alerts, rescuers, casualties, selected, selectedCasualtyId, showDetectionWeb]);
+
+  const handleZoomIn = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomIn();
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      mapRef.current.zoomOut();
+    }
+  };
+
+  const handleResetZoom = () => {
+    if (mapRef.current) {
+      mapRef.current.setView([6.9214, 122.0790], 15);
+    }
+  };
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden rounded-sm select-none border border-red-200/20"
+      style={{
+        background: "#f8fafc",
+      }}
+    >
+      {/* Actual Map Container */}
+      <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 1 }} />
+
+      {/* Map Layer & Detection Web Controls */}
+      <div className="absolute top-2 left-2 z-[1000] flex flex-col gap-1.5">
+        <div
+          className={`flex gap-1 p-0.5 rounded border backdrop-blur-sm transition-colors duration-500 ${
+            is3D ? "bg-slate-100 border-slate-200" : "bg-red-950/5 border-red-800/10"
+          }`}
+        >
+          <button
+            onClick={() => setIs3D(false)}
+            className={`px-2 py-0.5 text-[8px] font-mono border transition-all cursor-pointer rounded-sm ${
+              !is3D ? "bg-red-800 border-red-800 text-white font-bold" : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            2D PLAN
+          </button>
+          <button
+            onClick={() => setIs3D(true)}
+            className={`px-2 py-0.5 text-[8px] font-mono border transition-all cursor-pointer rounded-sm ${
+              is3D ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm" : "bg-transparent border-transparent text-red-800 hover:text-red-950"
+            }`}
+          >
+            3D SATELLITE
+          </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-orange-500 border border-orange-600" />
-          ASSIGNED
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-white border border-red-600" />
-          RESCUER
-        </div>
-        <div className="flex items-center gap-1.5 font-bold">
-          <span className="w-3.5 h-3.5 rounded-full bg-amber-500 border border-amber-600 flex items-center justify-center text-[7px] text-white">V</span>
-          VICTIM LOG
+
+        <div className="flex p-0.5 rounded border backdrop-blur-sm bg-white/90 border-slate-200 shadow-xs animate-fade-in">
+          <button
+            onClick={() => setShowDetectionWeb(!showDetectionWeb)}
+            className={`w-full px-2 py-0.5 text-[8px] font-mono border transition-all cursor-pointer rounded-sm flex items-center justify-center gap-1 ${
+              showDetectionWeb
+                ? "bg-red-800 border-red-800 text-white font-bold"
+                : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Signal size={8} />
+            {showDetectionWeb ? "MESH WEB: ON" : "MESH WEB: OFF"}
+          </button>
         </div>
       </div>
 
+      {/* Legend */}
+      <div
+        className="absolute bottom-2 left-2 z-[1000] flex flex-col gap-1 text-[9px] font-mono transition-colors duration-500 bg-white/90 backdrop-blur-xs p-1.5 rounded border border-slate-200/50 shadow-xs"
+        style={{ color: "#475569" }}
+      >
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded-full bg-red-800 border border-red-800 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>SOS</span>
+          SOS ALERT
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded bg-cyan-500 border border-cyan-600 text-white flex items-center justify-center text-[7px]" style={{ lineHeight: '12px' }}>R</span>
+          RESCUER UNIT
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-3 h-3 rounded-full bg-amber-500 border border-amber-600 flex items-center justify-center text-[7px] text-white" style={{ lineHeight: '12px' }}>V</span>
+          VICTIM LOG
+        </div>
+        <div className="flex items-center gap-1.5 font-semibold">
+          <span className="w-2.5 h-2.5 rounded-full bg-sky-600 border border-sky-700 flex items-center justify-center" />
+          KEY BUILDING
+        </div>
+        {showDetectionWeb && (
+          <>
+            <div className="h-px bg-slate-200/60 my-0.5" />
+            <div className="flex items-center gap-1.5 font-semibold text-slate-500">
+              <span className="w-3 h-3 rounded-full border border-dashed border-red-600/80 bg-red-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              GATEWAY RANGE (BH - 3km DENSE URBAN)
+            </div>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-500">
+              <span className="w-3 h-3 rounded-full border border-dashed border-cyan-500/80 bg-cyan-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              MOBILE MESH RANGE
+            </div>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-500">
+              <span className="w-3 h-3 rounded-full border border-dashed border-orange-500/80 bg-orange-500/10 flex items-center justify-center text-[6px]" style={{ lineHeight: '12px' }}>◎</span>
+              RELAY DETECTION ZONE
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Zoom / Navigation Controls */}
+      <div className="absolute bottom-2 right-2 z-[1000] flex flex-col gap-1">
+        <button
+          onClick={handleZoomIn}
+          className="flex items-center justify-center w-6 h-6 border rounded-sm font-bold shadow-xs cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+          title="Zoom In"
+        >
+          <Plus size={12} strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="flex items-center justify-center w-6 h-6 border rounded-sm font-bold shadow-xs cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+          title="Zoom Out"
+        >
+          <Minus size={12} strokeWidth={2.5} />
+        </button>
+        <button
+          onClick={handleResetZoom}
+          className="flex items-center justify-center w-6 h-6 border rounded-sm shadow-xs cursor-pointer transition-all bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+          title="Reset View"
+        >
+          <RefreshCw size={10} />
+        </button>
+      </div>
+
       {/* Coords */}
-      <div className="absolute top-2 right-2 text-[9px] font-mono text-right" style={{ color: "#b91c1c" }}>
+      <div className="absolute top-2 right-2 z-[1000] text-[9px] font-mono text-right transition-colors duration-500 bg-white/80 backdrop-blur-xs px-1.5 py-0.5 rounded border border-slate-200/50" style={{ color: "#475569" }}>
         <div>6.9214° N / 122.0790° E</div>
-        <div>ZAMBOANGA CITY</div>
+        <div>TUMAGA, ZAMBOANGA CITY</div>
       </div>
     </div>
   );
@@ -983,6 +1356,56 @@ export default function Home() {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [centerView, setCenterView] = useState("map");
 
+  const [isFetchingRescuers, setIsFetchingRescuers] = useState(false);
+
+  const fetchRescuers = async () => {
+    setIsFetchingRescuers(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/rescuers");
+      if (response.ok) {
+        const data = await response.json();
+        const mapped = data.map(r => ({
+          id: r.id_number || `R-${r.id}`,
+          dbId: r.id,
+          name: `${r.first_name} ${r.last_name}`,
+          email: r.email,
+          unit: r.phone_number || "Barangay Volunteer",
+          idType: r.id_type,
+          idNumber: r.id_number,
+          isVerified: r.is_verified === 1,
+          status: r.is_verified === 1 ? r.status : "offline",
+          coords: r.id_number === "BRGY-R01" ? [55, 60] : r.id_number === "GOV-R02" ? [25, 20] : r.id_number === "BRGY-R03" ? [80, 50] : [50, 50],
+          lat: r.id_number === "BRGY-R01" ? "6.9220° N" : r.id_number === "GOV-R02" ? "6.9180° N" : "6.9260° N",
+          lng: r.id_number === "BRGY-R01" ? "122.0800° E" : r.id_number === "GOV-R02" ? "122.0740° E" : "122.0850° E",
+          battery: r.is_verified === 1 ? (r.id_number === "BRGY-R01" ? 95 : r.id_number === "GOV-R02" ? 78 : 90) : 0,
+          lastPing: r.is_verified === 1 ? "04:48:12" : "--"
+        }));
+        setRescuers(mapped);
+      }
+    } catch (err) {
+      console.error("Failed to fetch rescuers", err);
+    } finally {
+      setIsFetchingRescuers(false);
+    }
+  };
+
+  const handleVerifyRescuer = async (dbId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/rescuers/verify/${dbId}`, {
+        method: "POST"
+      });
+      if (response.ok) {
+        fetchRescuers();
+      } else {
+        const errData = await response.json();
+        alert(errData.message || "Failed to verify rescuer");
+      }
+    } catch (err) {
+      console.error("Connection error", err);
+      alert("Failed to connect to backend server");
+    }
+  };
+
   const fetchCasualtyLogs = async () => {
     setIsFetchingCasualties(true);
     try {
@@ -1020,7 +1443,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchCasualtyLogs();
-    const interval = setInterval(fetchCasualtyLogs, 10000);
+    fetchRescuers();
+    const interval = setInterval(() => {
+      fetchCasualtyLogs();
+      fetchRescuers();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -1204,7 +1631,7 @@ export default function Home() {
             {[
               { key: "alerts", label: "SOS", icon: AlertTriangle },
               { key: "rescuers", label: "RESCUERS", icon: Users },
-              { key: "casualties", label: "VICTIMS", icon: ClipboardList },
+              { key: "casualties", label: "RECORDS", icon: ClipboardList },
               { key: "nodes", label: "MESH", icon: Radio },
             ].map(({ key, label, icon: Icon }) => (
               <button
@@ -1393,37 +1820,86 @@ export default function Home() {
             {/* Rescuers */}
             {activeTab === "rescuers" && (
               <div className="flex flex-col divide-y divide-red-50">
-                {rescuers.length === 0 && (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
-                    <Users size={28} className="text-slate-300" />
-                    <span className="text-[11px] font-mono text-slate-500 leading-relaxed">
-                      NO RESCUERS ONLINE<br />Units appear here when connected
-                    </span>
+                
+                {/* Pending Verification Section */}
+                {rescuers.some(r => !r.isVerified) && (
+                  <div className="bg-amber-50/70 p-3 pb-4 border-b border-amber-200">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <ShieldAlert size={14} className="text-amber-700 animate-pulse" />
+                      <h4 className="text-[10px] font-bold text-amber-800 tracking-wider uppercase">Pending Verification</h4>
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                      {rescuers.filter(r => !r.isVerified).map(r => (
+                        <div key={r.id} className="bg-white p-3 rounded border border-amber-200 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                              {r.idType}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-500">
+                              {r.idNumber}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 text-xs font-semibold text-slate-900">{r.name}</div>
+                          <div className="text-[10px] text-slate-600 font-mono mt-0.5">{r.email}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">Contact: {r.unit}</div>
+                          
+                          {/* Simulated ID Photo Preview */}
+                          <div className="mt-2 p-1.5 bg-slate-100 rounded border border-slate-200 flex items-center gap-2">
+                            <div className="w-8 h-8 bg-slate-300 rounded flex items-center justify-center text-[10px] font-bold text-slate-600">ID</div>
+                            <div className="flex-1">
+                              <div className="text-[9px] font-bold text-slate-700 font-mono">id_photo.jpg</div>
+                              <div className="text-[8px] text-slate-500">Simulated Uploaded Document</div>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleVerifyRescuer(r.dbId)}
+                            className="mt-3 w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-1"
+                          >
+                            <CheckCircle size={10} />
+                            Approve & Verify
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {rescuers.map((r) => (
-                  <div key={r.id} className="p-3 hover:bg-red-50/50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold text-red-800">{r.id}</span>
-                      <RescuerBadge status={r.status} />
+
+                {/* Active Rescuers Section */}
+                <div className="p-3 bg-red-50/20">
+                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2">Verified Units</h4>
+                  {rescuers.filter(r => r.isVerified).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                      <Users size={24} className="text-slate-300" />
+                      <span className="text-[10px] font-mono text-slate-400">NO VERIFIED RESCUERS ONLINE</span>
                     </div>
-                    <div className="mt-0.5 text-xs font-semibold text-red-900">{r.name}</div>
-                    <div className="text-[10px] font-mono text-slate-600">{r.unit}</div>
-                    <div
-                      className="mt-1 text-[10px] font-mono text-slate-500"
-                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                    >
-                      {r.lat} · {r.lng}
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {rescuers.filter(r => r.isVerified).map((r) => (
+                        <div key={r.id} className="p-2.5 bg-white border border-red-100 rounded hover:bg-red-50/30 transition-colors shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono font-bold text-red-800">{r.id}</span>
+                            <RescuerBadge status={r.status} />
+                          </div>
+                          <div className="mt-0.5 text-xs font-semibold text-red-900">{r.name}</div>
+                          <div className="text-[10px] font-mono text-slate-600">Phone: {r.unit}</div>
+                          <div className="text-[9px] font-mono text-slate-400 mt-0.5">ID: {r.idType} ({r.idNumber})</div>
+                          <div className="mt-1 text-[10px] font-mono text-slate-500">
+                            {r.lat} · {r.lng}
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-500">
+                            <span className="flex items-center gap-1"><PingDot active /> PING {r.lastPing}</span>
+                            <span>BAT {r.battery}%</span>
+                          </div>
+                          {r.assignedAlert && (
+                            <div className="mt-1 text-[9px] font-mono text-red-600">→ {r.assignedAlert}</div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-500">
-                      <span className="flex items-center gap-1"><PingDot active /> PING {r.lastPing}</span>
-                      <span>BAT {r.battery}%</span>
-                    </div>
-                    {r.assignedAlert && (
-                      <div className="mt-1 text-[9px] font-mono text-red-600">→ {r.assignedAlert}</div>
-                    )}
-                  </div>
-                ))}
+                  )}
+                </div>
+
               </div>
             )}
 

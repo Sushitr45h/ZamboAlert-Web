@@ -72,6 +72,43 @@ function createTables() {
       // Ignore errors (e.g. if the column already exists)
     });
 
+    // Rescuers table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS rescuers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        phone_number TEXT,
+        id_type TEXT NOT NULL,
+        id_number TEXT NOT NULL,
+        is_verified INTEGER DEFAULT 0, -- 0 = pending, 1 = verified
+        status TEXT DEFAULT 'available', -- 'available' | 'en-route' | 'offline'
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, () => {
+      // Seed data if empty
+      db.get("SELECT COUNT(*) as count FROM rescuers", (err, row) => {
+        if (!err && row && row.count === 0) {
+          const seedRescuers = [
+            ["rescuer1@zamboalert.gov", "Rescue Team", "Alpha", "+639987654321", "Barangay ID", "BRGY-R01", 1, "en-route"],
+            ["medic1@zamboalert.gov", "Medic", "Unit 1", "+639123456789", "Government ID", "GOV-R02", 1, "available"],
+            ["rescuer2@zamboalert.gov", "Rescue Team", "Beta", "+639876543210", "Barangay ID", "BRGY-R03", 1, "available"],
+            ["pending_rescuer@test.com", "Mark", "Rescuer", "+639012345678", "Barangay ID", "BRGY-PENDING", 0, "offline"]
+          ];
+          const stmt = db.prepare(`
+            INSERT INTO rescuers (email, first_name, last_name, phone_number, id_type, id_number, is_verified, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          seedRescuers.forEach((rescuer) => {
+            stmt.run(rescuer);
+          });
+          stmt.finalize();
+          console.log("Seeded rescuers table.");
+        }
+      });
+    });
+
     // Casualty/Victim logs table
     db.run(`
       CREATE TABLE IF NOT EXISTS casualty_logs (
@@ -167,14 +204,15 @@ function generateCode() {
 
 // 1. REGISTER
 app.post("/api/auth/register", async (req, res) => {
-  const { email, firstName, lastName, phoneNumber } = req.body;
+  const { email, firstName, lastName, phoneNumber, password } = req.body;
 
   if (!email || !firstName || !lastName) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   const username = `${firstName} ${lastName}`;
-  const tempPassword = "ZamboAlert_" + Math.floor(1000 + Math.random() * 9000);
+  const tempPassword = password ? null : ("ZamboAlert_" + Math.floor(1000 + Math.random() * 9000));
+  const finalPassword = password || tempPassword;
 
   try {
     // Check if user already exists
@@ -186,7 +224,7 @@ app.post("/api/auth/register", async (req, res) => {
 
       // Hash password
       const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(tempPassword, salt);
+      const hashedPassword = await bcrypt.hash(finalPassword, salt);
 
       // Generate verification code
       const code = generateCode();
@@ -202,16 +240,18 @@ app.post("/api/auth/register", async (req, res) => {
 
           // Send verification email
           const subject = "Verify your ZamboAlert Account";
-          const text = `Your email verification code is: ${code}. Your temporary login password is: ${tempPassword}. It expires in 15 minutes.`;
+          const text = password
+            ? `Your email verification code is: ${code}. It expires in 15 minutes.`
+            : `Your email verification code is: ${code}. Your temporary login password is: ${tempPassword}. It expires in 15 minutes.`;
           const html = `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #f1f1f1; border-radius: 8px; max-width: 500px; margin: auto;">
               <h2 style="color: #b91c1c; text-align: center;">ZamboAlert Security</h2>
               <p>Hello <strong>${username}</strong>,</p>
-              <p>Thank you for registering. Here are your temporary login credentials:</p>
+              <p>Thank you for registering. Here are your account details:</p>
               <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; margin: 15px 0;">
                 <p style="margin: 0 0 8px 0;"><strong>Username:</strong> ${username}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
-                <p style="margin: 0;"><strong>Temporary Password:</strong> <code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #b91c1c;">${tempPassword}</code></p>
+                ${password ? "" : `<p style="margin: 0;"><strong>Temporary Password:</strong> <code style="background-color: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #b91c1c;">${tempPassword}</code></p>`}
               </div>
               <p>Please use the following verification code to activate your account:</p>
               <div style="font-size: 24px; font-weight: bold; text-align: center; padding: 15px; background-color: #fef2f2; border: 1px dashed #f87171; color: #b91c1c; margin: 20px 0; border-radius: 4px; letter-spacing: 4px;">
@@ -224,7 +264,9 @@ app.post("/api/auth/register", async (req, res) => {
           const emailSent = await sendMail(email, subject, text, html);
 
           res.status(201).json({
-            message: "User registered successfully. Verification code and temporary password sent.",
+            message: password
+              ? "User registered successfully. Verification code sent."
+              : "User registered successfully. Verification code and temporary password sent.",
             email,
           });
         }
@@ -566,6 +608,62 @@ app.post("/api/logs/casualties/clear", (req, res) => {
     }
     res.json({ message: "All casualty logs cleared." });
   });
+});
+
+// Get all rescuers
+app.get("/api/rescuers", (req, res) => {
+  db.all("SELECT * FROM rescuers ORDER BY created_at DESC", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Register a new rescuer (from the mobile app, if connected)
+app.post("/api/rescuers/register", (req, res) => {
+  const { email, first_name, last_name, phone_number, id_type, id_number } = req.body;
+
+  if (!email || !first_name || !last_name || !id_type || !id_number) {
+    return res.status(400).json({ message: "Required fields are missing." });
+  }
+
+  db.run(
+    `INSERT INTO rescuers (email, first_name, last_name, phone_number, id_type, id_number, is_verified, status)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 'offline')`,
+    [email, first_name, last_name, phone_number || null, id_type, id_number],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE")) {
+          return res.status(400).json({ message: "Email is already registered." });
+        }
+        return res.status(500).json({ message: "Failed to register rescuer", error: err.message });
+      }
+      res.status(201).json({
+        message: "Rescuer registered successfully. Pending admin approval.",
+        rescuerId: this.lastID
+      });
+    }
+  );
+});
+
+// Verify/Approve a rescuer
+app.post("/api/rescuers/verify/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run(
+    "UPDATE rescuers SET is_verified = 1, status = 'available' WHERE id = ?",
+    [id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to verify rescuer", error: err.message });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ message: "Rescuer not found." });
+      }
+      res.json({ message: "Rescuer verified and approved successfully." });
+    }
+  );
 });
 
 app.listen(PORT, () => {

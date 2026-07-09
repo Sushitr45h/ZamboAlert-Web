@@ -154,17 +154,27 @@ export default function LoginPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      showNotificationMsg("Passwords do not match!", "error");
+      return;
+    }
+    if (strength.score < 3) {
+      showNotificationMsg("Password is too weak. Please ensure it is at least medium strength.", "error");
+      return;
+    }
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, firstName, lastName, phoneNumber }),
+        body: JSON.stringify({ email, firstName, lastName, phoneNumber, password }),
       });
       const data = await response.json();
 
       if (response.ok) {
         setView("verify");
-        showNotificationMsg("Verification code and temporary password sent to your email.", "success");
+        showNotificationMsg("Verification code sent to your email. Check your inbox.", "success");
+        setPassword("");
+        setConfirmPassword("");
       } else {
         showNotificationMsg(data.message || "Registration failed", "error");
       }
@@ -399,7 +409,11 @@ export default function LoginPage() {
               <div className="mt-4 pt-3 border-t border-slate-100 text-center text-xs text-slate-500">
                 New official?{" "}
                 <button
-                  onClick={() => setView("register")}
+                  onClick={() => {
+                    setView("register");
+                    setPassword("");
+                    setConfirmPassword("");
+                  }}
                   className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
                 >
                   Register Account
@@ -436,7 +450,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Phone Number (Optional)</label>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Phone Number</label>
                   <div className="relative">
                     <Smartphone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
@@ -455,6 +469,87 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Indicator */}
+                  {password.length > 0 && (
+                    <div className="mt-2 space-y-1.5 bg-slate-50 p-2.5 rounded border border-slate-100 text-left">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-medium">Strength:</span>
+                        <span className={`font-semibold ${
+                          strength.score <= 2 ? "text-red-700" : strength.score <= 4 ? "text-amber-600" : "text-green-600"
+                        }`}>{strength.label}</span>
+                      </div>
+                      <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden flex gap-0.5">
+                        <div className={`h-full ${strength.color}`} style={{ width: `${(strength.score / 5) * 100}%` }}></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-500">
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.length ? "text-green-500" : "text-slate-300"}`} />
+                          <span>8+ Characters</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.upper ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Uppercase letter</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.lower ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Lowercase letter</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.number ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Number</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className={`h-3 w-3 ${strength.checks.special ? "text-green-500" : "text-slate-300"}`} />
+                          <span>Special char</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-1">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-slate-200 focus:border-red-700 rounded px-3 py-2 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
                 <button type="submit"
                   className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white font-semibold text-sm rounded transition-colors cursor-pointer">
                   CREATE ACCOUNT
@@ -463,7 +558,11 @@ export default function LoginPage() {
 
               <div className="mt-6 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
                 Already registered?{" "}
-                <button onClick={() => setView("login")} className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
+                <button onClick={() => {
+                  setView("login");
+                  setPassword("");
+                  setConfirmPassword("");
+                }} className="text-red-700 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
                   Sign In
                 </button>
               </div>
