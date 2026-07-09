@@ -300,14 +300,15 @@ export default function LoginPage() {
      RENDER
   ════════════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-[#991b1b] via-[#450a0a] to-[#18181b] text-slate-900 flex flex-col relative overflow-hidden font-sans">
       {/* Decorative ambient background glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[55%] h-[55%] rounded-full bg-rose-100/30 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[55%] h-[55%] rounded-full bg-red-100/20 blur-[130px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-red-700/20 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-red-900/15 blur-[130px] pointer-events-none" />
+      <div className="absolute top-[25%] left-[25%] w-[50%] h-[50%] rounded-full bg-amber-600/10 blur-[100px] pointer-events-none" />
 
       {/* Main */}
       <div className="flex-1 flex items-center justify-center p-6 relative z-10">
-        <div className="w-full max-w-md bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-2xl shadow-slate-200/60 relative overflow-hidden">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-white/20 rounded-2xl p-6 md:p-8 shadow-2xl shadow-black/40 relative overflow-hidden">
 
           {/* ZamboAlert Modal Header / Brand */}
           <div className="flex flex-col items-center justify-center mt-2 mb-6">
