@@ -188,12 +188,12 @@ function PingDot({ active }) {
 
 function StatusBadge({ status }) {
   const cfg = {
-    unassigned: "bg-red-800 text-white",
-    assigned: "bg-orange-500 text-white",
-    resolved: "bg-green-600 text-white",
-  }[status];
+    unassigned: "bg-red-50 text-red-700 border border-red-200/60",
+    assigned: "bg-amber-50 text-amber-700 border border-amber-200/60",
+    resolved: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
+  }[status] || "bg-slate-50 text-slate-700 border border-slate-200/60";
   return (
-    <span className={`text-[8px] font-mono font-bold uppercase tracking-widest px-1.5 py-px rounded-sm ${cfg}`}>
+    <span className={`text-[9px] font-semibold tracking-wider px-2 py-0.5 rounded-full uppercase ${cfg}`}>
       {status}
     </span>
   );
@@ -201,12 +201,12 @@ function StatusBadge({ status }) {
 
 function RescuerBadge({ status }) {
   const cfg = {
-    available: "bg-green-100 text-green-700 border border-green-300",
-    "en-route": "bg-orange-100 text-orange-700 border border-orange-300",
-    "on-scene": "bg-red-100 text-red-800 border border-red-300",
-  }[status];
+    available: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
+    "en-route": "bg-amber-50 text-amber-700 border border-amber-200/60",
+    "on-scene": "bg-red-50 text-red-700 border border-red-200/60",
+  }[status] || "bg-slate-50 text-slate-700 border border-slate-200/60";
   return (
-    <span className={`text-[8px] font-mono font-bold uppercase tracking-widest px-1.5 py-px rounded-sm ${cfg}`}>
+    <span className={`text-[9px] font-semibold tracking-wider px-2 py-0.5 rounded-full uppercase ${cfg}`}>
       {status}
     </span>
   );
@@ -502,13 +502,21 @@ function TacticalMap({
           Rescued: "bg-green-600 border-green-700 text-white",
         }[c.status] || "bg-slate-500 border-slate-600 text-white";
 
+        const disasterEmoji = {
+          Flood: "🌊",
+          Landslide: "🪨",
+          Earthquake: "🫨",
+          Fire: "🔥",
+          "Storm Surge": "💨",
+        }[c.disaster_type] || "🪨";
+
         const html = `
           <div class="relative flex flex-col items-center justify-center">
-            ${isSel ? '<span class="absolute w-6 h-6 rounded-full border border-dashed border-red-600 animate-spin" style="margin-top:-3px;"></span>' : ""}
-            <div class="relative flex items-center justify-center w-4 h-4 rounded-full border text-[8px] font-extrabold font-mono transition-transform ${statusColors}">
-              V
+            ${isSel ? '<span class="absolute w-8 h-8 rounded-full border border-dashed border-red-600 animate-spin" style="margin-top:-2px;"></span>' : ""}
+            <div class="relative flex items-center justify-center w-6 h-6 rounded-full border text-[11px] transition-transform ${statusColors} shadow-md" title="${c.disaster_type || "Unknown"} Area">
+              ${disasterEmoji}
             </div>
-            <span class="absolute top-5 bg-white text-slate-800 text-[7px] px-1 py-px rounded border border-slate-300 font-mono whitespace-nowrap shadow-xs">
+            <span class="absolute top-7 bg-white text-slate-800 text-[7px] px-1 py-px rounded border border-slate-300 font-mono whitespace-nowrap shadow-xs z-[1000]">
               ${c.victim_name}
             </span>
           </div>
@@ -517,8 +525,8 @@ function TacticalMap({
         const customIcon = L.divIcon({
           html: html,
           className: "custom-casualty-marker",
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
         });
 
         const popupDiv = document.createElement("div");
@@ -532,6 +540,7 @@ function TacticalMap({
           <div class="space-y-0.5 mb-2">
             <div><strong>Name:</strong> ${c.victim_name}</div>
             <div><strong>Status:</strong> <span class="font-semibold uppercase text-red-700">${c.status}</span></div>
+            <div><strong>Disaster:</strong> <span class="font-semibold text-slate-700">${c.disaster_type || "Unknown"}</span></div>
             <div><strong>Age/Gender:</strong> ${c.age || "N/A"} / ${c.gender || "N/A"}</div>
             <div><strong>Injury:</strong> <span class="italic text-slate-500">${c.injury_details || "None listed"}</span></div>
           </div>
@@ -914,7 +923,7 @@ function TacticalMap({
             </div>
             <div>
               <strong>Name:</strong> {selectedCasualty.victim_name}<br/>
-              <strong>Status:</strong> <span className="text-red-700 font-bold">{selectedCasualty.status}</span> · {selectedCasualty.location}<br/>
+              <strong>Status:</strong> <span className="text-red-700 font-bold">{selectedCasualty.status}</span> · {selectedCasualty.location} · <span className="font-semibold text-slate-700">{selectedCasualty.disaster_type || "Unknown"}</span><br/>
               <strong>Injury:</strong> {selectedCasualty.injury_details || "N/A"}
             </div>
             <div className="border-t border-red-100 pt-2 flex flex-col gap-1">
@@ -970,22 +979,22 @@ function SettingsModal({
   onLogout,
 }) {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white border border-red-200 rounded-sm w-full max-w-lg mx-4 shadow-2xl shadow-red-100 font-mono text-xs text-red-900">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-md transition-all">
+      <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-lg mx-4 shadow-2xl overflow-hidden font-sans text-xs text-slate-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <Settings size={14} className="text-red-800" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
+            <Settings size={15} className="text-red-700" />
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-800">
               System Settings
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors cursor-pointer">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1.5 rounded-full transition-all cursor-pointer">
             <X size={14} />
           </button>
         </div>
-        <div className="p-4 flex flex-col gap-4">
+        <div className="p-5 flex flex-col gap-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
           {/* Rule Card */}
-          <div className="bg-red-50/40 p-4 border border-red-100 rounded-sm shadow-xs space-y-3">
+          <div className="bg-red-50/30 p-4 border border-red-100/60 rounded-xl space-y-3">
             <h4 className="text-[10px] font-bold text-red-800 tracking-wider uppercase">Rescuer Onboarding Rules</h4>
             <div className="flex items-start gap-3 cursor-pointer select-none">
               <input
@@ -993,18 +1002,18 @@ function SettingsModal({
                 id="require-approval-chk-modal"
                 checked={settings.requireRescuerApproval}
                 onChange={(e) => onToggleSetting("require_rescuer_approval", e.target.checked)}
-                className="mt-0.5 rounded border-red-200 text-red-800 focus:ring-red-500 focus:border-red-400"
+                className="mt-0.5 rounded border-red-200 text-red-800 focus:ring-red-500 focus:border-red-400 w-4 h-4 cursor-pointer"
               />
-              <label htmlFor="require-approval-chk-modal" className="flex-1 text-[10px] text-slate-700 leading-tight cursor-pointer">
-                <span className="font-semibold text-slate-900 block">Require Administrator Approval</span>
+              <label htmlFor="require-approval-chk-modal" className="flex-1 text-[11px] text-slate-600 leading-tight cursor-pointer">
+                <span className="font-bold text-slate-900 block mb-0.5">Require Administrator Approval</span>
                 When enabled, rescuers registering from the mobile application must be manually verified and approved by the administrator before receiving rescue alerts. If disabled, rescuers are auto-approved upon registration.
               </label>
             </div>
           </div>
 
           {/* Pending Applications section */}
-          <div className="border border-red-100 rounded-sm p-4 bg-white flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-red-50 pb-2">
+          <div className="border border-slate-100 rounded-xl p-4 bg-white flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-slate-50 pb-2">
               <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">
                 Pending Rescuer Applications ({rescuers.filter(r => !r.isVerified).length})
               </h4>
@@ -1013,30 +1022,30 @@ function SettingsModal({
               )}
             </div>
 
-            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
               {rescuers.filter(r => !r.isVerified).length === 0 ? (
-                <div className="text-[10px] text-slate-400 text-center py-6 italic font-mono">
+                <div className="text-[10px] text-slate-400 text-center py-6 italic font-medium">
                   No pending registration applications at this time.
                 </div>
               ) : (
                 rescuers.filter(r => !r.isVerified).map(r => (
-                  <div key={`settings-modal-pend-${r.id}`} className="bg-amber-50/20 p-3 rounded border border-amber-200/50 flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
+                  <div key={`settings-modal-pend-${r.id}`} className="bg-amber-50/20 p-3 rounded-xl border border-amber-200/50 flex flex-col gap-2">
+                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="text-[11px] font-bold text-slate-900">{r.name}</div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">{r.email}</div>
+                        <div className="text-xs font-bold text-slate-900">{r.name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">{r.email}</div>
                       </div>
                       <span className="text-[8px] font-mono font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200/60 uppercase">
                         {r.idType}
                       </span>
                     </div>
-                    <div className="text-[9px] text-slate-600 font-mono space-y-0.5">
+                    <div className="text-[10px] text-slate-600 font-mono space-y-0.5">
                       <div>ID Number: {r.idNumber}</div>
                       <div>Contact Info: {r.unit}</div>
                     </div>
                     <button
                       onClick={() => onVerifyRescuer(r.dbId)}
-                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-bold uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <CheckCircle size={10} />
                       Approve & Verify Rescuer
@@ -1048,13 +1057,13 @@ function SettingsModal({
           </div>
 
           {/* Account/Session Action */}
-          <div className="border border-red-100 rounded-sm p-4 bg-white flex flex-col gap-3">
+          <div className="border border-slate-100 rounded-xl p-4 bg-white flex flex-col gap-3">
             <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">
               Account Session
             </h4>
             <button
               onClick={onLogout}
-              className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-800 border border-red-200 hover:border-red-300 text-xs font-semibold tracking-widest uppercase rounded-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5 font-mono"
+              className="w-full py-2.5 bg-red-50 hover:bg-red-100/80 text-red-700 border border-red-200 hover:border-red-300 text-xs font-bold tracking-wider uppercase rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <LogOut size={12} />
               Logout System
@@ -1081,37 +1090,39 @@ function BroadcastModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white border border-red-200 rounded-sm w-full max-w-lg mx-4 shadow-2xl shadow-red-100">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-md transition-all">
+      <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-lg mx-4 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <Volume2 size={14} className="text-red-800" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
+            <Volume2 size={15} className="text-red-700" />
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-800">
               Broadcast Announcement
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1.5 rounded-full transition-all">
             <X size={14} />
           </button>
         </div>
-        <div className="p-4 flex flex-col gap-3">
+        <div className="p-5 flex flex-col gap-4">
           {sent ? (
-            <div className="flex flex-col items-center gap-2 py-6">
-              <CheckCircle size={32} className="text-green-500" />
-              <span className="text-sm font-mono text-green-600">BROADCAST TRANSMITTED</span>
-              <span className="text-xs text-red-400">Broadcast transmitted to all active nodes</span>
+            <div className="flex flex-col items-center gap-3 py-8">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                <CheckCircle size={24} />
+              </div>
+              <span className="text-xs font-bold font-mono text-emerald-700 tracking-wider">BROADCAST TRANSMITTED</span>
+              <span className="text-[11px] text-slate-500">Transmitted via LoRa mesh mesh network</span>
             </div>
           ) : (
             <>
-              <div className="flex gap-2">
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
                 {["emergency", "advisory", "info"].map((p) => (
                   <button
                     key={p}
                     onClick={() => setPriority(p)}
-                    className={`flex-1 py-1.5 text-[10px] font-mono uppercase tracking-widest rounded-sm border transition-colors ${
+                    className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${
                       priority === p
-                        ? "bg-red-800 border-red-800 text-white"
-                        : "border-red-200 text-slate-600 hover:border-red-400 hover:text-red-800"
+                        ? "bg-white text-red-800 shadow-sm"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     {p}
@@ -1122,8 +1133,9 @@ function BroadcastModal({ onClose }) {
                 value={msg}
                 onChange={(e) => setMsg(e.target.value)}
                 rows={4}
+                maxLength={280}
                 placeholder="Enter announcement message to broadcast across all mesh nodes..."
-                className="w-full bg-red-50 border border-red-200 rounded-sm text-sm text-red-900 placeholder:text-slate-400 resize-none p-3 outline-none focus:border-red-400 font-mono"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 resize-none p-3.5 outline-none focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all font-sans"
               />
               <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
                 <span>TARGET: ALL ACTIVE NODES</span>
@@ -1132,9 +1144,9 @@ function BroadcastModal({ onClose }) {
               <button
                 onClick={handleSend}
                 disabled={!msg.trim()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-800 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-40 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold tracking-wider rounded-xl transition-all shadow-sm shadow-red-100 cursor-pointer"
               >
-                <Send size={13} />
+                <Send size={12} />
                 TRANSMIT BROADCAST
               </button>
             </>
@@ -1157,51 +1169,58 @@ function DispatchModal({
   const available = rescuers.filter((r) => r.status === "available");
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white border border-red-200 rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-red-100">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-md transition-all">
+      <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-md mx-4 shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <UserCheck size={14} className="text-red-800" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
+            <UserCheck size={15} className="text-red-700" />
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-800">
               Dispatch Rescue Unit
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1.5 rounded-full transition-all">
             <X size={14} />
           </button>
         </div>
-        <div className="p-4 flex flex-col gap-3">
-          <div className="bg-red-50 border border-red-100 rounded-sm p-3 text-xs font-mono space-y-1">
-            <div className="text-red-800 font-semibold">{alert.id} — {alert.name}</div>
-            <div className="text-slate-600">{alert.zone} · {alert.lat}, {alert.lng}</div>
+        <div className="p-5 flex flex-col gap-4">
+          <div className="bg-red-50/50 border border-red-100/65 rounded-xl p-3.5 text-xs font-sans space-y-1.5">
+            <div className="text-red-900 font-bold flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[9px] font-mono font-bold">{alert.id}</span>
+              <span>{alert.name}</span>
+            </div>
+            <div className="text-slate-600 text-[11px]">{alert.zone} · {alert.lat}, {alert.lng}</div>
             {alert.message && (
-              <div className="text-red-800 italic border-t border-red-100 pt-1 mt-1">&ldquo;{alert.message}&rdquo;</div>
+              <div className="text-red-800 italic border-t border-red-100/40 pt-2 mt-2 text-[11px]">&ldquo;{alert.message}&rdquo;</div>
             )}
           </div>
-          <div className="text-[10px] font-mono text-red-700 uppercase tracking-widest">
-            Available Units ({available.length})
+          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+            Available Rescue Units ({available.length})
           </div>
-          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+          <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
             {available.length === 0 && (
-              <div className="text-xs text-slate-500 text-center py-4">No units available</div>
+              <div className="text-xs text-slate-500 text-center py-6 font-medium">No rescue units available online</div>
             )}
             {available.map((r) => (
               <button
                 key={r.id}
                 onClick={() => setChosen(r.id)}
-                className={`flex items-center justify-between p-2.5 rounded-sm border text-left transition-colors ${
+                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
                   chosen === r.id
-                    ? "border-red-600 bg-red-50"
-                    : "border-red-100 hover:border-red-300"
+                    ? "border-red-500 bg-red-50/30"
+                    : "border-slate-200/60 hover:border-red-200/80 bg-white"
                 }`}
               >
                 <div>
-                  <div className="text-xs font-semibold text-red-900">{r.name}</div>
-                  <div className="text-[10px] font-mono text-slate-600">{r.unit} · {r.id}</div>
+                  <div className="text-xs font-bold text-slate-900">{r.name}</div>
+                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">{r.unit} · {r.id}</div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-red-600">BAT {r.battery}%</span>
-                  {chosen === r.id && <CheckCircle size={12} className="text-red-800" />}
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md">BAT {r.battery}%</span>
+                  {chosen === r.id ? (
+                    <CheckCircle size={14} className="text-red-600" />
+                  ) : (
+                    <div className="w-3.5 h-3.5 rounded-full border border-slate-300 bg-white" />
+                  )}
                 </div>
               </button>
             ))}
@@ -1209,9 +1228,9 @@ function DispatchModal({
           <button
             onClick={() => chosen && onDispatch(alert.id, chosen)}
             disabled={!chosen}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-800 hover:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold tracking-wider rounded-sm transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-40 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold tracking-wider rounded-xl transition-all shadow-sm shadow-red-100 cursor-pointer"
           >
-            <Navigation size={13} />
+            <Navigation size={12} />
             AUTHORIZE DISPATCH
           </button>
         </div>
@@ -1263,45 +1282,45 @@ function VictimsDatabaseView({
   };
 
   return (
-    <div className="space-y-4 font-mono text-xs">
+    <div className="space-y-4 font-sans text-xs text-slate-700">
       {/* Metrics Row */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-5 gap-3.5">
         {[
-          { label: "TOTAL LOGGED", value: total, border: "border-red-200", bg: "bg-red-50/50", text: "text-red-900" },
-          { label: "INJURED", value: injured, border: "border-amber-200", bg: "bg-amber-50/30", text: "text-amber-700" },
-          { label: "DECEASED", value: deceased, border: "border-purple-200", bg: "bg-purple-50/30", text: "text-purple-800" },
-          { label: "MISSING", value: missing, border: "border-red-200", bg: "bg-red-50/30", text: "text-red-600" },
-          { label: "RESCUED", value: rescued, border: "border-green-200", bg: "bg-green-50/30", text: "text-green-700" },
+          { label: "Total Logged", value: total, border: "border-slate-100", bg: "bg-white", text: "text-slate-800" },
+          { label: "Injured", value: injured, border: "border-amber-100", bg: "bg-amber-50/20", text: "text-amber-700" },
+          { label: "Deceased", value: deceased, border: "border-purple-100", bg: "bg-purple-50/20", text: "text-purple-700" },
+          { label: "Missing", value: missing, border: "border-red-100", bg: "bg-red-50/20", text: "text-red-700" },
+          { label: "Rescued", value: rescued, border: "border-emerald-100", bg: "bg-emerald-50/20", text: "text-emerald-700" },
         ].map((stat, i) => (
-          <div key={i} className={`border ${stat.border} ${stat.bg} p-3 rounded-sm flex flex-col justify-between shadow-sm`}>
-            <span className="text-[9px] text-red-700 font-bold uppercase tracking-wider">{stat.label}</span>
-            <span className={`text-2xl font-bold mt-1 ${stat.text}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</span>
+          <div key={i} className={`border ${stat.border} ${stat.bg} p-4 rounded-xl flex flex-col justify-between shadow-xs hover:shadow transition-all`}>
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{stat.label}</span>
+            <span className={`text-2xl font-black mt-1.5 font-mono ${stat.text}`}>{stat.value}</span>
           </div>
         ))}
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 border border-red-100 rounded-sm">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <span className="text-slate-500"><Search size={14} /></span>
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 border border-slate-100 rounded-xl shadow-xs">
+        <div className="flex items-center gap-2.5 flex-1 min-w-[240px] bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 focus-within:bg-white focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-500/20 transition-all">
+          <span className="text-slate-400"><Search size={14} /></span>
           <input
             type="text"
             placeholder="Search victims, locations, rescuers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-red-50/30 border border-red-100 rounded-sm px-2 py-1 outline-none text-red-900 placeholder:text-slate-400 text-xs"
+            className="flex-1 bg-transparent border-0 outline-none text-slate-800 placeholder:text-slate-400 text-xs py-0.5"
           />
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
           {["ALL", "Injured", "Deceased", "Missing", "Rescued"].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 rounded-sm border text-[9px] font-mono uppercase transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
                 statusFilter === st
-                  ? "bg-red-800 border-red-800 text-white"
-                  : "border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-800"
+                  ? "bg-white text-red-800 shadow-sm font-black"
+                  : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {st}
@@ -1313,24 +1332,24 @@ function VictimsDatabaseView({
           <button
             onClick={fetchCasualtyLogs}
             disabled={isFetching}
-            className="p-1.5 border border-red-100 hover:border-red-300 text-red-500 rounded-sm"
+            className="p-2 border border-slate-200 hover:border-red-200 text-slate-500 hover:text-red-700 bg-white rounded-xl cursor-pointer transition-all"
             title="Refresh database"
           >
-            <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
+            <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} />
           </button>
           <button
             onClick={onSimulateClick}
-            className="bg-red-800 hover:bg-red-800 text-white px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors"
+            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shadow-red-100 cursor-pointer"
           >
-            <Plus size={12} />
+            <Plus size={13} />
             RECORD CASUALTY
           </button>
           {total > 0 && (
             <button
               onClick={handleClearAll}
-              className="border border-red-200 hover:border-red-400 text-red-500 hover:text-red-800 px-3 py-1.5 rounded-sm font-semibold flex items-center gap-1.5 transition-colors"
+              className="border border-slate-200 bg-white hover:border-red-200 hover:bg-red-50/20 text-slate-600 hover:text-red-700 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              <Trash2 size={12} />
+              <Trash2 size={13} />
               CLEAR ALL
             </button>
           )}
@@ -1338,63 +1357,69 @@ function VictimsDatabaseView({
       </div>
 
       {/* Main Table Grid */}
-      <div className="bg-white border border-red-100 rounded-sm overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="bg-white border border-slate-100 rounded-xl overflow-hidden shadow-xs">
+        <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-red-50 border-b border-red-100 text-[10px] text-red-800 font-bold uppercase tracking-wider">
-                <th className="py-2.5 px-3">Victim Name</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Age / Gender</th>
-                <th className="py-2.5 px-3">Injury Details / Notes</th>
-                <th className="py-2.5 px-3">Location Zone</th>
-                <th className="py-2.5 px-3">Reported By</th>
-                <th className="py-2.5 px-3">Time Logged</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+              <tr className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <th className="py-3.5 px-4">Victim Name</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Disaster Area</th>
+                <th className="py-3.5 px-4">Age / Gender</th>
+                <th className="py-3.5 px-4">Injury Details / Notes</th>
+                <th className="py-3.5 px-4">Location Zone</th>
+                <th className="py-3.5 px-4">Reported By</th>
+                <th className="py-3.5 px-4">Time Logged</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-red-50">
+            <tbody className="divide-y divide-slate-100">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-slate-500">
+                  <td colSpan="9" className="py-10 text-center text-slate-400 font-medium">
                     No casualty records matching the current filters.
                   </td>
                 </tr>
               ) : (
                 filteredLogs.map((c) => {
                   const statusBadgeClass = {
-                    Injured: "bg-amber-100 text-amber-800 border-amber-300",
-                    Deceased: "bg-purple-100 text-purple-800 border-purple-300",
-                    Missing: "bg-red-100 text-red-800 border-red-300",
-                    Rescued: "bg-green-100 text-green-800 border-green-300",
-                  }[c.status] || "bg-slate-100 text-slate-800 border-slate-300";
+                    Injured: "bg-amber-50 text-amber-700 border-amber-200/60",
+                    Deceased: "bg-purple-50 text-purple-700 border-purple-200/60",
+                    Missing: "bg-red-50 text-red-700 border-red-200/60",
+                    Rescued: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+                  }[c.status] || "bg-slate-50 text-slate-700 border-slate-200/60";
 
                   return (
-                    <tr key={c.id} className="hover:bg-red-50/30 text-red-900 transition-colors">
-                      <td className="py-3 px-3 font-semibold text-xs text-red-800">
+                    <tr key={c.id} className="hover:bg-slate-50/40 text-slate-700 transition-colors">
+                      <td className="py-4 px-4 font-bold text-slate-900">
                         {c.victim_name}
                       </td>
-                      <td className="py-3 px-3">
-                        <span className={`inline-block text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-px border rounded-sm ${statusBadgeClass}`}>
+                      <td className="py-4 px-4">
+                        <span className={`inline-block text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 border rounded-full ${statusBadgeClass}`}>
                           {c.status}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-slate-700 font-mono">
+                      <td className="py-4 px-4">
+                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-100/50 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase">
+                          {c.disaster_type === "Flood" ? "🌊" : c.disaster_type === "Landslide" ? "🪨" : c.disaster_type === "Earthquake" ? "🫨" : c.disaster_type === "Fire" ? "🔥" : c.disaster_type === "Storm Surge" ? "💨" : "🪨"} {c.disaster_type || "Unknown"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-slate-600 font-mono">
                         {c.age ? `${c.age} y/o` : "--"} / {c.gender || "--"}
                       </td>
-                      <td className="py-3 px-3 text-slate-700 italic">
+                      <td className="py-4 px-4 text-slate-600 italic">
                         {c.injury_details || "No comments"}
                       </td>
-                      <td className="py-3 px-3 font-mono">
-                        <div className="font-semibold text-red-900">{c.location || "--"}</div>
+                      <td className="py-4 px-4 font-mono">
+                        <div className="font-bold text-slate-800">{c.location || "--"}</div>
                         {c.latitude && c.longitude && (
-                          <div className="text-[9px] text-slate-500">{c.latitude}, {c.longitude}</div>
+                          <div className="text-[9.5px] text-slate-400">{c.latitude}, {c.longitude}</div>
                         )}
                       </td>
-                      <td className="py-3 px-3 font-mono text-slate-600">
+                      <td className="py-4 px-4 font-mono text-slate-500">
                         {c.rescuer_name ? `${c.rescuer_name} (${c.rescuer_id})` : c.rescuer_id || "--"}
                       </td>
-                      <td className="py-3 px-3 text-slate-500 font-mono">
+                      <td className="py-4 px-4 text-slate-400 font-mono">
                         {new Date(c.created_at).toLocaleString("en-PH", {
                           month: "short",
                           day: "numeric",
@@ -1403,11 +1428,11 @@ function VictimsDatabaseView({
                           hour12: false
                         })}
                       </td>
-                      <td className="py-3 px-3 text-right">
+                      <td className="py-4 px-4 text-right">
                         {c.latitude && c.longitude ? (
                           <button
                             onClick={() => onShowOnMap(c)}
-                            className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-800 hover:text-red-800 px-2 py-1 rounded-sm text-[10px] font-bold tracking-wider transition-colors"
+                            className="bg-red-50 hover:bg-red-100 border border-red-100 text-red-700 hover:text-red-800 px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wider transition-all cursor-pointer"
                           >
                             LOCATE MAP
                           </button>
@@ -1437,6 +1462,7 @@ function RecordCasualtyModal({ onClose, onRecord }) {
   const [injuryDetails, setInjuryDetails] = useState("");
   const [location, setLocation] = useState("Zone 1 - Riverbank");
   const [rescuerId, setRescuerId] = useState("R-01");
+  const [disasterType, setDisasterType] = useState("Flood");
 
   // Generate random coordinates inside Barangay Tumaga boundaries on mount
   const [latitude, setLatitude] = useState("");
@@ -1470,36 +1496,33 @@ function RecordCasualtyModal({ onClose, onRecord }) {
       injury_details: injuryDetails,
       location,
       latitude: latitude ? parseFloat(latitude) : null,
-      longitude: longitude ? parseFloat(longitude) : null
+      longitude: longitude ? parseFloat(longitude) : null,
+      disaster_type: disasterType
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white border border-red-200 rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-red-100">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-md transition-all">
+      <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-lg mx-4 shadow-2xl overflow-hidden font-sans">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <ClipboardList size={14} className="text-red-800" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
+            <ClipboardList size={15} className="text-red-700" />
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-800">
               Simulate Rescuer Report
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1.5 rounded-full transition-all cursor-pointer">
             <X size={14} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-3.5 text-xs font-mono">
-          <div className="text-[10px] text-slate-500 leading-normal uppercase">
-          
-          </div>
-
+        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4 text-xs text-slate-700 max-h-[80vh] overflow-y-auto custom-scrollbar">
           <div className="flex gap-3">
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">RESCUER UNIT</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Rescuer Unit</label>
               <select
                 value={rescuerId}
                 onChange={(e) => setRescuerId(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all cursor-pointer"
               >
                 <option value="R-01">R-01 (Rescue Team Alpha)</option>
                 <option value="R-02">R-02 (Medic Unit 1)</option>
@@ -1507,11 +1530,11 @@ function RecordCasualtyModal({ onClose, onRecord }) {
               </select>
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">VICTIM STATUS</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Victim Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400 font-bold text-red-800"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-red-700 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all font-bold cursor-pointer"
               >
                 <option value="Injured">Injured</option>
                 <option value="Deceased">Deceased</option>
@@ -1522,34 +1545,34 @@ function RecordCasualtyModal({ onClose, onRecord }) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold">VICTIM NAME</label>
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Victim Name</label>
             <input
               type="text"
               required
               placeholder="e.g. Maria Santos or Unknown Male"
               value={victimName}
               onChange={(e) => setVictimName(e.target.value)}
-              className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400"
+              className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all"
             />
           </div>
 
           <div className="flex gap-3">
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">AGE</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Age</label>
               <input
                 type="number"
                 placeholder="Optional"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all"
               />
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">GENDER</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Gender</label>
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all cursor-pointer"
               >
                 <option value="Unknown">Unknown</option>
                 <option value="Male">Male</option>
@@ -1559,11 +1582,11 @@ function RecordCasualtyModal({ onClose, onRecord }) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold">LOCATION ZONE</label>
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Location Zone</label>
             <select
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400"
+              className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all cursor-pointer"
             >
               <option value="Zone 1 - Riverbank">Zone 1 - Riverbank</option>
               <option value="Zone 2 - Commercial">Zone 2 - Commercial</option>
@@ -1572,54 +1595,70 @@ function RecordCasualtyModal({ onClose, onRecord }) {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Disaster Area Type</label>
+            <select
+              value={disasterType}
+              onChange={(e) => setDisasterType(e.target.value)}
+              className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all font-semibold cursor-pointer"
+            >
+              <option value="Flood">Flood (🌊)</option>
+              <option value="Landslide">Landslide (🪨)</option>
+              <option value="Earthquake">Earthquake (🫨)</option>
+              <option value="Fire">Fire (🔥)</option>
+              <option value="Storm Surge">Storm Surge (💨)</option>
+              <option value="Unknown">Unknown (🪨)</option>
+            </select>
+          </div>
+
           <div className="flex gap-3">
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">LATITUDE</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Latitude</label>
               <input
                 type="number"
                 step="0.0001"
                 required
                 value={latitude}
                 onChange={(e) => setLatitude(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400 font-mono"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all font-mono"
               />
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] text-red-700 font-bold">LONGITUDE</label>
+              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Longitude</label>
               <input
                 type="number"
                 step="0.0001"
                 required
                 value={longitude}
                 onChange={(e) => setLongitude(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400 font-mono"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all font-mono"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold">INJURY DETAILS / COMMENTS</label>
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Injury Details / Comments</label>
             <textarea
               value={injuryDetails}
               onChange={(e) => setInjuryDetails(e.target.value)}
               rows={2}
               placeholder="e.g. Compound fracture, internal bleeding, or Drowning victim..."
-              className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none text-red-900 focus:border-red-400 resize-none"
+              className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-3 outline-none text-slate-800 focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 transition-all resize-none"
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 border border-red-100 hover:border-red-300 text-red-500 rounded-sm font-semibold transition-colors"
+              className="flex-1 py-2.5 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 bg-white hover:bg-slate-50 rounded-xl font-bold transition-all cursor-pointer"
             >
               CANCEL
             </button>
             <button
               type="submit"
               disabled={!victimName.trim()}
-              className="flex-1 py-2 bg-red-800 hover:bg-red-800 text-white rounded-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-40 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl font-bold transition-all cursor-pointer shadow-sm shadow-red-100"
             >
               TRANSMIT FIELD LOG
             </button>
@@ -1679,31 +1718,31 @@ function CallRescuerModal({ rescuers, casualties, alerts, onClose, onDispatch })
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-white/30 backdrop-blur-sm">
-      <div className="bg-white border border-red-200 rounded-sm w-full max-w-md mx-4 shadow-2xl shadow-red-100 font-mono text-xs text-red-900">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-red-100 bg-red-50/50">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-md transition-all">
+      <div className="bg-white border border-slate-100 rounded-2xl w-full max-w-md mx-4 shadow-2xl overflow-hidden font-sans text-xs text-slate-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <PhoneCall size={14} className="text-red-800" />
-            <span className="text-sm font-semibold tracking-widest uppercase text-red-800">
+            <PhoneCall size={15} className="text-red-700" />
+            <span className="text-xs font-bold tracking-wider uppercase text-slate-800">
               Call & Dispatch Rescuer
             </span>
           </div>
-          <button onClick={onClose} className="text-red-300 hover:text-red-800 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 p-1.5 rounded-full transition-all cursor-pointer">
             <X size={14} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-3.5">
+        <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold uppercase">1. Select Rescuer Unit</label>
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">1. Select Rescuer Unit</label>
             {availableRescuers.length === 0 ? (
-              <div className="text-red-500 font-semibold p-2 border border-red-100 bg-red-50/20 text-center rounded-sm">
+              <div className="text-red-700 font-semibold p-3 border border-red-100/60 bg-red-50/30 text-center rounded-xl">
                 No active rescuers are currently available.
               </div>
             ) : (
               <select
                 value={selectedRescuerId}
                 onChange={(e) => setSelectedRescuerId(e.target.value)}
-                className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none focus:border-red-400 text-red-900"
+                className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-slate-800 transition-all cursor-pointer"
               >
                 {availableRescuers.map(r => (
                   <option key={r.id} value={r.id}>
@@ -1714,14 +1753,14 @@ function CallRescuerModal({ rescuers, casualties, alerts, onClose, onDispatch })
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold uppercase">2. Select Target Type</label>
-            <div className="flex border border-red-100 rounded-sm overflow-hidden">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">2. Select Target Type</label>
+            <div className="flex p-1 bg-slate-100 rounded-xl">
               <button
                 type="button"
                 onClick={() => setTargetType("victim")}
-                className={`flex-1 py-1.5 text-center font-semibold transition-colors cursor-pointer ${
-                  targetType === "victim" ? "bg-red-800 text-white" : "bg-red-50/30 text-red-800 hover:bg-red-50"
+                className={`flex-1 py-1.5 text-center text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+                  targetType === "victim" ? "bg-white text-red-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 Victim
@@ -1729,8 +1768,8 @@ function CallRescuerModal({ rescuers, casualties, alerts, onClose, onDispatch })
               <button
                 type="button"
                 onClick={() => setTargetType("alert")}
-                className={`flex-1 py-1.5 text-center font-semibold transition-colors cursor-pointer ${
-                  targetType === "alert" ? "bg-red-800 text-white" : "bg-red-50/30 text-red-800 hover:bg-red-50"
+                className={`flex-1 py-1.5 text-center text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+                  targetType === "alert" ? "bg-white text-red-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 SOS Alert
@@ -1738,21 +1777,21 @@ function CallRescuerModal({ rescuers, casualties, alerts, onClose, onDispatch })
               <button
                 type="button"
                 onClick={() => setTargetType("respondent")}
-                className={`flex-1 py-1.5 text-center font-semibold transition-colors cursor-pointer ${
-                  targetType === "respondent" ? "bg-red-800 text-white" : "bg-red-50/30 text-red-800 hover:bg-red-50"
+                className={`flex-1 py-1.5 text-center text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
+                  targetType === "respondent" ? "bg-white text-red-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Respondent/Node
+                Unit / Node
               </button>
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-red-700 font-bold uppercase">3. Choose Target Destination</label>
+            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">3. Choose Target Destination</label>
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              className="w-full bg-red-50/50 border border-red-100 rounded-sm p-2 outline-none focus:border-red-400 text-red-900"
+              className="w-full bg-slate-50/50 border border-slate-200/80 rounded-xl p-2.5 outline-none focus:bg-white focus:border-red-500 focus:ring-1 focus:ring-red-500/20 text-slate-800 transition-all cursor-pointer"
               required
             >
               <option value="" disabled>-- Select Target --</option>
@@ -1794,18 +1833,18 @@ function CallRescuerModal({ rescuers, casualties, alerts, onClose, onDispatch })
             </select>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 border border-red-100 hover:border-red-300 text-red-500 rounded-sm font-semibold transition-colors cursor-pointer"
+              className="flex-1 py-2.5 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-700 bg-white hover:bg-slate-50 rounded-xl font-bold transition-all cursor-pointer"
             >
               CANCEL
             </button>
             <button
               type="submit"
               disabled={availableRescuers.length === 0 || !targetId}
-              className="flex-1 py-2 bg-red-800 hover:bg-red-900 text-white rounded-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-wider cursor-pointer"
+              className="flex-1 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:opacity-40 disabled:from-slate-300 disabled:to-slate-300 text-white rounded-xl font-bold transition-all shadow-sm shadow-red-100 uppercase tracking-wider cursor-pointer"
             >
               DISPATCH UNIT
             </button>
@@ -2098,104 +2137,105 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-red-900 flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-slate-50/70 text-slate-700 flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── Distress Flash Banner ── */}
       {unassigned.length > 0 && (
         <div
-          className="border-b transition-colors duration-300"
+          className="transition-colors duration-300"
           style={{
-            background: flashCount % 2 === 0 ? "#dc2626" : "#ef4444",
-            borderColor: "#b91c1c",
+            background: flashCount % 2 === 0 ? "rgba(220, 38, 38, 0.95)" : "rgba(239, 68, 68, 0.95)",
           }}
         >
-          <div className="flex items-center gap-3 px-4 py-1.5">
-            <AlertTriangle size={13} className="text-white" />
-            <span className="text-[11px] font-mono text-white tracking-wider font-semibold">
-              ⚡ DISTRESS SIGNAL ACTIVE — {unassigned.length} UNASSIGNED SOS{unassigned.length > 1 ? "S" : ""} REQUIRE IMMEDIATE DISPATCH
+          <div className="flex items-center gap-2.5 px-6 py-2">
+            <AlertTriangle size={14} className="text-white animate-pulse" />
+            <span className="text-[11px] font-bold text-white tracking-wider uppercase">
+              ⚡ DISTRESS ALERT ACTIVE — {unassigned.length} UNASSIGNED SOS REQUEST{unassigned.length > 1 ? "S" : ""} REQUIRE IMMEDIATE DISPATCH
             </span>
-            <span className="ml-auto text-[10px] font-mono text-red-200 animate-pulse">
-              AWAITING AUTHORIZATION
+            <span className="ml-auto text-[9.5px] font-bold font-mono text-red-100 animate-pulse bg-red-800/40 px-2 py-0.5 rounded-full">
+              AWAITING DISPATCH
             </span>
           </div>
         </div>
       )}
 
       {/* ── Header ── */}
-      <header className="flex items-center gap-4 px-5 py-3 border-b border-red-100 bg-white sticky top-0 z-40 shadow-sm shadow-red-50">
-        <div className="flex items-center gap-2.5">
+      <header className="flex items-center gap-4 px-6 py-3.5 border-b border-slate-200/50 bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-md shadow-red-100">
+            <Radio className="text-white" size={16} />
+          </div>
           <div>
-            <div className="text-base font-bold tracking-tight text-red-800 leading-none">ZamboAlert</div>
-            <div className="text-[9px] font-mono text-red-700 tracking-widest">BARANGAY MONITORING SYSTEM</div>
+            <div className="text-base font-extrabold tracking-tight text-slate-900 leading-none">ZamboAlert</div>
+            <div className="text-[9px] font-bold text-red-600 tracking-wider mt-1 uppercase">BARANGAY MONITORING SYSTEM</div>
           </div>
         </div>
 
-        <div className="h-6 w-px bg-red-100 mx-1" />
+        <div className="h-5 w-px bg-slate-200/80 mx-2" />
 
-        <div className="flex items-center gap-4 text-[10px] font-mono text-slate-600">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-5 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/30">
             <PingDot active />
-            <span className="text-red-800 font-semibold">GATEWAY ONLINE</span>
+            <span className="text-slate-700 font-bold text-[9px] tracking-wider">GATEWAY ONLINE</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Wifi size={11} className="text-red-600" />
-            <span>LOCAL AP ACTIVE</span>
+            <Wifi size={13} className="text-red-500" />
+            <span className="font-semibold">LOCAL AP ACTIVE</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Radio size={11} className="text-red-700" />
-            <span>MESH: 3 NODES</span>
+            <Radio size={13} className="text-red-500" />
+            <span className="font-semibold">MESH: 3 NODES</span>
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-4">
           <div className="text-right">
             <div
-              className="text-base font-mono text-red-800 tabular-nums"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              className="text-sm font-bold text-slate-800 tabular-nums leading-none mb-1 font-mono"
             >
               {fmtTime(now)}
             </div>
-            <div className="text-[9px] font-mono text-slate-600">
-              {now.toLocaleDateString("en-PH", { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
+            <div className="text-[10px] font-medium text-slate-400">
+              {now.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
             </div>
           </div>
           <button
             onClick={() => navigate("/settings")}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 hover:border-red-400 text-red-800 hover:text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 border border-slate-200/80 hover:border-red-300 hover:bg-red-50/20 text-slate-700 hover:text-red-700 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm bg-white"
           >
-            <Settings size={11} />
+            <Settings size={13} />
             SETTINGS
           </button>
         </div>
       </header>
 
       {/* ── Body ── */}
-      <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 48px)" }}>
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden" style={{ height: "calc(100vh - 65px)" }}>
 
         {/* Left sidebar */}
-        <aside className="w-80 flex-shrink-0 flex flex-col border-r border-red-100 overflow-y-auto bg-white">
+        <aside className="w-80 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200/50 shadow-sm overflow-hidden">
 
           {/* Stat row */}
-          <div className="grid grid-cols-3 border-b border-red-100">
+          <div className="grid grid-cols-3 bg-slate-50/50 border-b border-slate-100">
             {[
-              { label: "ACTIVE SOS", value: alerts.filter((a) => a.status !== "resolved").length, color: "text-red-800" },
-              { label: "RESCUERS", value: rescuers.length, color: "text-red-600" },
-              { label: "MESH NODES", value: MESH_NODES.filter((n) => n.online).length, color: "text-red-700" },
+              { label: "ACTIVE SOS", value: alerts.filter((a) => a.status !== "resolved").length, color: "text-red-600" },
+              { label: "RESCUERS", value: rescuers.length, color: "text-slate-800" },
+              { label: "MESH NODES", value: MESH_NODES.filter((n) => n.online).length, color: "text-slate-800" },
             ].map((s) => (
-              <div key={s.label} className="flex flex-col items-center justify-center py-3 border-r border-red-100 last:border-0">
+              <div key={s.label} className="flex flex-col items-center justify-center py-4 border-r border-slate-100 last:border-0">
                 <span
-                  className={`text-2xl font-bold tabular-nums ${s.color}`}
+                  className={`text-xl font-black tabular-nums ${s.color}`}
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   {s.value}
                 </span>
-                <span className="text-[9px] font-mono text-slate-500 tracking-wider mt-0.5">{s.label}</span>
+                <span className="text-[9px] font-bold text-slate-500 tracking-wider mt-1">{s.label}</span>
               </div>
             ))}
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-red-100">
+          <div className="flex bg-slate-100/70 p-1 rounded-xl mx-3.5 my-3 border border-slate-200/40">
             {[
               { key: "alerts", label: "SOS", icon: AlertTriangle },
               { key: "rescuers", label: "RESCUERS", icon: Users },
@@ -2205,10 +2245,10 @@ export default function Home() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[8px] font-mono tracking-widest border-r border-red-100 last:border-0 transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-bold tracking-wider rounded-lg transition-all cursor-pointer ${
                   activeTab === key
-                    ? "bg-red-50 text-red-800 border-b-2 border-b-red-800"
-                    : "text-slate-400 hover:text-red-800 hover:bg-red-50/50"
+                    ? "bg-white text-red-700 shadow-sm border border-slate-200/10 font-black"
+                    : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <Icon size={12} />
@@ -2218,33 +2258,31 @@ export default function Home() {
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
 
             {/* Casualties / Victims Tab */}
             {activeTab === "casualties" && (
-              <div className="flex flex-col divide-y divide-red-50">
-                <div className="p-2 bg-red-50/50 flex items-center justify-between border-b border-red-50">
-                  <span className="text-[9px] font-mono text-red-700 uppercase tracking-widest">
-                    LOGGED: {casualtyLogs.length} RECORD(S)
-                  </span>
+              <div className="flex flex-col p-1">
+                <div className="mx-3 my-2 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <span>LOGGED: {casualtyLogs.length} RECORD(S)</span>
                   <button
                     onClick={fetchCasualtyLogs}
                     disabled={isFetchingCasualties}
-                    className="text-red-700 hover:text-red-800 flex items-center gap-1 text-[9px] font-mono"
+                    className="text-red-700 hover:text-red-800 flex items-center gap-1 cursor-pointer font-bold"
                   >
                     <RefreshCw size={9} className={isFetchingCasualties ? "animate-spin" : ""} />
                     SYNC
                   </button>
                 </div>
                 {casualtyLogs.length === 0 && (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
-                    <ClipboardList size={28} className="text-slate-300" />
-                    <span className="text-[11px] font-mono text-slate-500 leading-relaxed">
+                  <div className="flex flex-col items-center justify-center gap-2 py-16 px-4 text-center">
+                    <ClipboardList size={32} className="text-slate-300" />
+                    <span className="text-[11px] font-semibold text-slate-400 leading-relaxed">
                       NO RECORDED VICTIMS<br />Rescuers' logs will appear here
                     </span>
                     <button
                       onClick={() => setShowRecordModal(true)}
-                      className="mt-2 px-2.5 py-1 bg-red-800 text-white text-[10px] font-mono uppercase tracking-widest rounded shadow-sm"
+                      className="mt-3 px-3 py-1.5 bg-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm hover:bg-red-900 transition-colors cursor-pointer"
                     >
                       SIMULATE LOG
                     </button>
@@ -2253,11 +2291,11 @@ export default function Home() {
                 {casualtyLogs.map((c) => {
                   const isSel = selectedCasualtyId === c.id;
                   const statusBadgeClass = {
-                    Injured: "bg-amber-100 text-amber-800 border-amber-300",
-                    Deceased: "bg-purple-100 text-purple-800 border-purple-300",
-                    Missing: "bg-red-100 text-red-800 border-red-300",
-                    Rescued: "bg-green-100 text-green-800 border-green-300",
-                  }[c.status] || "bg-slate-100 text-slate-800 border-slate-300";
+                    Injured: "bg-amber-50 text-amber-700 border-amber-200/60",
+                    Deceased: "bg-purple-50 text-purple-700 border-purple-200/60",
+                    Missing: "bg-red-50 text-red-700 border-red-200/60",
+                    Rescued: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+                  }[c.status] || "bg-slate-50 text-slate-700 border-slate-200/60";
 
                   return (
                     <div
@@ -2266,32 +2304,50 @@ export default function Home() {
                         setSelectedCasualtyId(isSel ? null : c.id);
                         setCenterView("map");
                       }}
-                      className={`p-3 cursor-pointer transition-colors ${
-                        isSel ? "bg-red-50" : "hover:bg-red-50/50"
+                      className={`p-4 mx-3 my-1.5 rounded-xl cursor-pointer border transition-all duration-200 ${
+                        isSel
+                          ? "bg-red-50/30 border-red-200/60 shadow-sm"
+                          : "border-slate-100 bg-white hover:border-red-100/50 hover:shadow-md hover:-translate-y-px"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <span className="text-[10px] font-mono font-bold text-red-800">VIC-{c.id}</span>
-                          <span className={`text-[8px] font-mono font-bold uppercase tracking-widest px-1 py-px rounded-sm border ${statusBadgeClass}`}>
+                          <span className={`text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${statusBadgeClass}`}>
                             {c.status}
                           </span>
                         </div>
-                        <span className="text-[8px] font-mono text-slate-500">
+                        <span className="text-[9px] font-mono text-slate-400">
                           {new Date(c.created_at || Date.now()).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", hour12: false })}
                         </span>
                       </div>
-                      <div className="mt-1 text-xs font-semibold text-red-900">{c.victim_name}</div>
-                      <div className="text-[10px] font-mono text-slate-600">
-                        {c.location || "Unknown Zone"} {c.age ? `· Age ${c.age}` : ""} {c.gender ? `· ${c.gender}` : ""}
+                      <div className="mt-2 text-xs font-bold text-slate-900">{c.victim_name}</div>
+                      <div className="text-[10.5px] text-slate-500 flex flex-wrap items-center gap-1.5 mt-1 font-sans">
+                        <span className="font-semibold text-slate-700">{c.location || "Unknown Zone"}</span>
+                        <span>·</span>
+                        <span className="bg-red-50 text-red-700 border border-red-100/50 px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase flex items-center gap-0.5">
+                          {c.disaster_type === "Flood" ? "🌊" : c.disaster_type === "Landslide" ? "🪨" : c.disaster_type === "Earthquake" ? "🫨" : c.disaster_type === "Fire" ? "🔥" : c.disaster_type === "Storm Surge" ? "💨" : "🪨"} {c.disaster_type || "Unknown"}
+                        </span>
+                        {c.age && (
+                          <>
+                            <span>·</span>
+                            <span>{c.age} yrs</span>
+                          </>
+                        )}
+                        {c.gender && (
+                          <>
+                            <span>·</span>
+                            <span>{c.gender}</span>
+                          </>
+                        )}
                       </div>
                       {c.injury_details && (
-                        <div className="mt-1 text-[10px] text-red-700 italic truncate">&ldquo;{c.injury_details}&rdquo;</div>
+                        <div className="mt-1.5 p-2 bg-slate-50 border border-slate-100 rounded-lg text-[10px] text-slate-600 italic truncate">&ldquo;{c.injury_details}&rdquo;</div>
                       )}
-                      <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-500">
-                        <span>BY {c.rescuer_id || c.rescuer_name || "Unknown"}</span>
+                      <div className="mt-2.5 pt-2 border-t border-slate-100/50 flex items-center justify-between text-[9px] font-semibold text-slate-400">
+                        <span>BY {c.rescuer_name || c.rescuer_id || "Unknown"}</span>
                         {c.latitude && c.longitude && (
-                          <span className="text-[8px] text-red-700 font-semibold">📍 {c.latitude}, {c.longitude}</span>
+                          <span className="text-[9px] text-red-700 font-bold">📍 {c.latitude}, {c.longitude}</span>
                         )}
                       </div>
                     </div>
@@ -2302,11 +2358,11 @@ export default function Home() {
 
             {/* Alerts */}
             {activeTab === "alerts" && (
-              <div className="flex flex-col divide-y divide-red-50">
+              <div className="flex flex-col p-1">
                 {alerts.length === 0 && (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
-                    <AlertTriangle size={28} className="text-slate-300" />
-                    <span className="text-[11px] font-mono text-slate-500 leading-relaxed">
+                  <div className="flex flex-col items-center justify-center gap-2 py-16 px-4 text-center">
+                    <AlertTriangle size={32} className="text-slate-300" />
+                    <span className="text-[11px] font-semibold text-slate-400 leading-relaxed">
                       NO ACTIVE SOS ALERTS<br />Awaiting incoming distress signals
                     </span>
                   </div>
@@ -2318,63 +2374,66 @@ export default function Home() {
                     <div
                       key={a.id}
                       onClick={() => setSelectedAlert(isSel ? null : a.id)}
-                      className={`p-3 cursor-pointer transition-colors ${
-                        isSel ? "bg-red-50" : "hover:bg-red-50/50"
-                      } ${isUnassigned && flashCount % 2 === 0 ? "bg-red-50" : ""}`}
+                      className={`p-4 mx-3 my-1.5 rounded-xl cursor-pointer border transition-all duration-200 ${
+                        isSel
+                          ? "bg-red-50/30 border-red-200/60 shadow-sm"
+                          : isUnassigned
+                          ? "bg-red-50/20 border-red-100/55 animate-pulse-border-red"
+                          : "border-slate-100 bg-white hover:border-red-100/50 hover:shadow-md hover:-translate-y-px"
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-mono font-bold text-red-800">{a.id}</span>
                           <span
-                            className={`text-[9px] font-mono px-1.5 py-px rounded-sm border ${
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
                               a.method === "GPS"
                                 ? "border-red-200 text-red-600 bg-red-50"
-                                : "border-red-300 text-red-800 bg-red-50"
+                                : "border-slate-200 text-slate-700 bg-slate-50"
                             }`}
                           >
                             {a.method}
                           </span>
                         </div>
-                        <span className="text-[9px] font-mono text-slate-500">{a.time}</span>
+                        <span className="text-[9px] font-mono text-slate-400">{a.time}</span>
                       </div>
-                      <div className="mt-1 text-xs font-semibold text-red-900">{a.name}</div>
-                      <div className="text-[10px] font-mono text-slate-600">{a.zone}</div>
+                      <div className="mt-2 text-xs font-bold text-slate-900">{a.name}</div>
+                      <div className="text-[10.5px] font-semibold text-slate-500 mt-0.5">{a.zone}</div>
                       {a.message && (
-                        <div className="mt-1 text-[10px] text-slate-600 italic truncate">&ldquo;{a.message}&rdquo;</div>
+                        <div className="mt-1.5 p-2 bg-slate-50 border border-slate-100 rounded-lg text-[10.5px] text-slate-600 italic truncate">&ldquo;{a.message}&rdquo;</div>
                       )}
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-3 flex items-center gap-2">
                         <StatusBadge status={a.status} />
                         {a.assignedTo && (
-                          <span className="text-[9px] font-mono text-slate-600">→ {a.assignedTo}</span>
+                          <span className="text-[9.5px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">→ {a.assignedTo}</span>
                         )}
-                        <span className="ml-auto text-[9px] font-mono text-slate-500">BAT {a.battery}%</span>
+                        <span className="ml-auto text-[9px] font-mono text-slate-400 font-semibold">BAT {a.battery}%</span>
                       </div>
                       {isSel && (
                         <div
-                          className="mt-1.5 text-[10px] font-mono text-slate-600"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                          className="mt-2 pt-2 border-t border-slate-100 text-[9.5px] font-mono text-slate-500"
                         >
-                          {a.lat} {a.lng}
+                          📍 {a.lat} {a.lng}
                         </div>
                       )}
                       {isSel && a.status === "unassigned" && (
-                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setDispatchTarget(a)}
-                            className="w-full flex items-center justify-center gap-1 py-1.5 bg-red-800 hover:bg-red-800 text-white text-[10px] font-semibold tracking-widest rounded-sm transition-colors"
+                            className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-[10px] font-bold tracking-wider rounded-lg transition-all shadow-sm shadow-red-100 cursor-pointer"
                           >
-                            <Navigation size={10} />
+                            <Navigation size={11} />
                             DISPATCH
                           </button>
                         </div>
                       )}
                       {isSel && a.status === "assigned" && (
-                        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => handleResolve(a.id)}
-                            className="w-full flex items-center justify-center gap-1 py-1.5 bg-green-600 hover:bg-green-700 text-white text-[10px] font-semibold tracking-widest rounded-sm transition-colors"
+                            className="w-full flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white text-[10px] font-bold tracking-wider rounded-lg transition-all shadow-sm shadow-emerald-100 cursor-pointer"
                           >
-                            <CheckCircle size={10} />
+                            <CheckCircle size={11} />
                             MARK RESOLVED
                           </button>
                         </div>
@@ -2387,44 +2446,44 @@ export default function Home() {
 
             {/* Rescuers */}
             {activeTab === "rescuers" && (
-              <div className="flex flex-col divide-y divide-red-50">
+              <div className="flex flex-col">
                 
                 {/* Pending Verification Section */}
                 {rescuers.some(r => !r.isVerified) && (
-                  <div className="bg-amber-50/70 p-3 pb-4 border-b border-amber-200">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <ShieldAlert size={14} className="text-amber-700 animate-pulse" />
+                  <div className="bg-amber-50/40 p-4 border-b border-amber-200/50">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <ShieldAlert size={15} className="text-amber-700 animate-pulse" />
                       <h4 className="text-[10px] font-bold text-amber-800 tracking-wider uppercase">Pending Verification</h4>
                     </div>
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-3">
                       {rescuers.filter(r => !r.isVerified).map(r => (
-                        <div key={r.id} className="bg-white p-3 rounded border border-amber-200 shadow-sm">
+                        <div key={r.id} className="bg-white p-4 rounded-xl border border-amber-200/60 shadow-sm">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                            <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
                               {r.idType}
                             </span>
-                            <span className="text-[9px] font-mono text-slate-500">
+                            <span className="text-[10px] font-mono text-slate-500">
                               {r.idNumber}
                             </span>
                           </div>
-                          <div className="mt-1.5 text-xs font-semibold text-slate-900">{r.name}</div>
-                          <div className="text-[10px] text-slate-600 font-mono mt-0.5">{r.email}</div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">Contact: {r.unit}</div>
+                          <div className="mt-2 text-xs font-bold text-slate-900">{r.name}</div>
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">{r.email}</div>
+                          <div className="text-[10px] text-slate-600 mt-1">Contact: {r.unit}</div>
                           
                           {/* Simulated ID Photo Preview */}
-                          <div className="mt-2 p-1.5 bg-slate-100 rounded border border-slate-200 flex items-center gap-2">
-                            <div className="w-8 h-8 bg-slate-300 rounded flex items-center justify-center text-[10px] font-bold text-slate-600">ID</div>
+                          <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">ID</div>
                             <div className="flex-1">
                               <div className="text-[9px] font-bold text-slate-700 font-mono">id_photo.jpg</div>
-                              <div className="text-[8px] text-slate-500">Simulated Uploaded Document</div>
+                              <div className="text-[8px] text-slate-400">Simulated Uploaded Document</div>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleVerifyRescuer(r.dbId)}
-                            className="mt-3 w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase tracking-wider rounded transition-colors flex items-center justify-center gap-1"
+                            className="mt-3 w-full py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all shadow-sm shadow-amber-100 cursor-pointer flex items-center justify-center gap-1"
                           >
-                            <CheckCircle size={10} />
+                            <CheckCircle size={11} />
                             Approve & Verify
                           </button>
                         </div>
@@ -2434,37 +2493,37 @@ export default function Home() {
                 )}
 
                 {/* Active Rescuers Section */}
-                <div className="p-3 bg-red-50/20">
-                  <h4 className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-2">Verified Units</h4>
+                <div className="p-4 bg-slate-50/20">
+                  <h4 className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-3">Verified Units</h4>
                   {rescuers.filter(r => r.isVerified).length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
                       <Users size={24} className="text-slate-300" />
                       <span className="text-[10px] font-mono text-slate-400">NO VERIFIED RESCUERS ONLINE</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3">
                       {rescuers.filter(r => r.isVerified).map((r) => (
-                        <div key={r.id} className="p-2.5 bg-white border border-red-100 rounded hover:bg-red-50/30 transition-colors shadow-sm">
+                        <div key={r.id} className="p-3.5 bg-white border border-slate-100 rounded-xl hover:border-red-100/50 hover:shadow-md transition-all duration-200 shadow-xs">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-mono font-bold text-red-800">{r.id}</span>
+                            <span className="text-[10.5px] font-mono font-bold text-red-800">{r.id}</span>
                             <RescuerBadge status={r.status} />
                           </div>
-                          <div className="mt-0.5 text-xs font-semibold text-red-900">{r.name}</div>
-                          <div className="text-[10px] font-mono text-slate-600">Phone: {r.unit}</div>
-                          <div className="text-[9px] font-mono text-slate-400 mt-0.5">ID: {r.idType} ({r.idNumber})</div>
-                          <div className="mt-1 text-[10px] font-mono text-slate-500">
-                            {r.lat} · {r.lng}
+                          <div className="mt-1.5 text-xs font-bold text-slate-800">{r.name}</div>
+                          <div className="text-[10px] text-slate-600 mt-0.5">Phone: {r.unit}</div>
+                          <div className="text-[9.5px] font-mono text-slate-400 mt-0.5">ID: {r.idType} ({r.idNumber})</div>
+                          <div className="mt-1.5 text-[9.5px] font-mono text-slate-500 flex items-center gap-1">
+                            📍 <span>{r.lat} · {r.lng}</span>
                           </div>
-                          <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono text-slate-500">
-                            <span className="flex items-center gap-1"><PingDot active /> PING {r.lastPing}</span>
-                            <span>BAT {r.battery}%</span>
+                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[9px] font-semibold text-slate-400">
+                            <span className="flex items-center gap-1.5"><PingDot active /> PING {r.lastPing}</span>
+                            <span className="font-mono text-slate-500">BAT {r.battery}%</span>
                           </div>
                           {(r.assignedAlert || r.assignedTargetType) && (
-                            <div className="mt-1.5 pt-1.5 border-t border-red-50 flex items-center justify-between gap-1.5 text-[9px] font-mono text-red-600">
+                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5 text-[9.5px] font-semibold text-red-600">
                               <span className="truncate flex-1">→ {r.assignedTargetName || r.assignedTargetId || r.assignedAlert}</span>
                               <button
                                 onClick={() => handleResolveRescuer(r.dbId)}
-                                className="px-2 py-0.5 bg-green-700 text-white font-bold rounded-sm uppercase tracking-wider hover:bg-green-800 transition-colors cursor-pointer"
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg uppercase tracking-wider transition-colors cursor-pointer text-[9px]"
                               >
                                 Resolve
                               </button>
@@ -2481,47 +2540,45 @@ export default function Home() {
 
             {/* Nodes */}
             {activeTab === "nodes" && (
-              <div className="flex flex-col divide-y divide-red-50">
+              <div className="flex flex-col p-1">
                 {MESH_NODES.length === 0 && (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
-                    <Radio size={28} className="text-slate-300" />
-                    <span className="text-[11px] font-mono text-slate-500 leading-relaxed">
+                  <div className="flex flex-col items-center justify-center gap-2 py-16 px-4 text-center">
+                    <Radio size={32} className="text-slate-300" />
+                    <span className="text-[11px] font-semibold text-slate-400 leading-relaxed">
                       NO MESH NODES DETECTED<br />Nodes register automatically on connect
                     </span>
                   </div>
                 )}
                 {MESH_NODES.map((n) => (
-                  <div key={n.id} className="p-3 hover:bg-red-50/50 transition-colors">
+                  <div key={n.id} className="p-3.5 mx-3 my-1.5 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all duration-200 shadow-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono font-bold text-red-800">{n.id}</span>
                       <div className="flex items-center gap-1.5">
                         <PingDot active={n.online} />
-                        <span className={`text-[9px] font-mono uppercase tracking-widest ${n.online ? "text-red-800" : "text-slate-400"}`}>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider ${n.online ? "text-slate-800" : "text-slate-400"}`}>
                           {n.online ? "ONLINE" : "OFFLINE"}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-0.5 text-xs text-red-900">{n.label}</div>
-                    <div className="flex items-center justify-between mt-1.5 text-[9px] font-mono text-slate-600">
+                    <div className="mt-1.5 text-xs font-bold text-slate-900">{n.label}</div>
+                    <div className="flex items-center justify-between mt-2.5 text-[10px] text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <SignalBars bars={signalBars(n.signalDbm)} active={n.online} />
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{n.signalDbm} dBm</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace" }} className="font-semibold text-slate-600">{n.signalDbm} dBm</span>
                       </div>
                       <span
-                        className={`px-1.5 py-px rounded-sm border text-[8px] ${
+                        className={`px-2 py-0.5 rounded-full border text-[8.5px] font-bold tracking-wider ${
                           n.type === "gateway"
-                            ? "border-red-400 text-red-800 bg-red-50"
-                            : n.type === "relay"
-                            ? "border-slate-200 text-slate-600 bg-red-50"
-                            : "border-slate-100 text-slate-400"
+                            ? "border-red-200 text-red-800 bg-red-50/80"
+                            : "border-slate-200 text-slate-600 bg-slate-50"
                         }`}
                       >
                         {n.type.toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex justify-between mt-1 text-[9px] font-mono text-slate-500">
-                      <span>RELAY {n.relayCount} pkts</span>
-                      <span>SEEN {n.lastSeen}</span>
+                    <div className="flex justify-between mt-2 pt-2 border-t border-slate-100 text-[9px] font-semibold text-slate-400">
+                      <span>RELAY: {n.relayCount} packets</span>
+                      <span>SEEN: {n.lastSeen}</span>
                     </div>
                   </div>
                 ))}
@@ -2531,39 +2588,36 @@ export default function Home() {
         </aside>
 
         {/* Center: Map / Victims Database */}
-        <main className="flex-1 flex flex-col min-w-0 bg-white">
-          <div className="flex items-center justify-between px-3 py-1.5 border-b border-red-100 bg-white">
-            <div className="flex gap-1">
-              <button
-                onClick={() => setCenterView("map")}
-                className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider rounded-sm transition-colors ${
-                  centerView === "map"
-                    ? "bg-red-800 text-white font-semibold"
-                    : "text-red-400 hover:text-red-800 hover:bg-red-50"
-                }`}
-              >
-                Tactical Map
-              </button>
-              <button
-                onClick={() => setCenterView("victims")}
-                className={`px-3 py-1 text-[10px] font-mono uppercase tracking-wider rounded-sm transition-colors flex items-center gap-1.5 ${
-                  centerView === "victims"
-                    ? "bg-red-800 text-white font-semibold"
-                    : "text-red-400 hover:text-red-800 hover:bg-red-50"
-                }`}
-              >
-                <ClipboardList size={11} />
-                Victims Database ({casualtyLogs.length})
-              </button>
+        <main className="flex-1 flex flex-col min-w-0 bg-white rounded-2xl border border-slate-200/50 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex items-center gap-3">
+              {centerView === "victims" ? (
+                <button
+                  onClick={() => setCenterView("map")}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-white border border-slate-200 text-slate-600 hover:text-red-700 hover:border-red-200 rounded-lg shadow-xs transition-all cursor-pointer"
+                >
+                  <X size={10} />
+                  Close Database
+                </button>
+              ) : (
+                <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                  Tactical Map
+                </span>
+              )}
+              {centerView === "victims" && (
+                <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                  Victims Database ({casualtyLogs.length})
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-3 text-[10px] font-mono text-slate-600">
-              <span className="text-red-600 animate-pulse">●</span>
-              <span>BARANGAY TUMAGA FEEDS</span>
+            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 tracking-wider">
+              <span className="text-red-500 animate-pulse">●</span>
+              <span>LIVE FEED: BRGY. TUMAGA</span>
             </div>
           </div>
 
           {centerView === "map" ? (
-            <div className="flex-1 p-2">
+            <div className="flex-1 relative overflow-hidden">
               <TacticalMap
                 alerts={alerts}
                 rescuers={rescuers}
@@ -2582,7 +2636,7 @@ export default function Home() {
               />
             </div>
           ) : (
-            <div className="flex-1 p-4 overflow-y-auto bg-red-50/10 space-y-4">
+            <div className="flex-1 p-5 overflow-y-auto custom-scrollbar bg-slate-50/10 space-y-4">
               <VictimsDatabaseView
                 casualtyLogs={casualtyLogs}
                 fetchCasualtyLogs={fetchCasualtyLogs}
@@ -2596,46 +2650,48 @@ export default function Home() {
               />
             </div>
           )}
+          
           {/* Status bar */}
-          <div className="flex items-center gap-4 px-3 py-1.5 border-t border-red-100 bg-red-50/30 text-[9px] font-mono text-slate-600">
+          <div className="flex items-center flex-wrap gap-y-2 gap-x-5 px-5 py-2.5 border-t border-slate-100 bg-slate-50/50 text-[10px] text-slate-500">
             <div className="flex items-center gap-1.5">
-              <Activity size={10} className="text-red-600" />
-              <span>SYSTEM NOMINAL</span>
+              <span className="flex items-center gap-1.5 font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100/30">● SYSTEM NOMINAL</span>
+            </div>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-600">
+              <Signal size={11} />
+              <span>INTERNET: OFFLINE (LOCAL AP)</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Signal size={10} />
-              <span>INTERNET: OFFLINE (LOCAL AP MODE)</span>
+              <span className="flex items-center gap-1.5 font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100/30 animate-pulse">
+                <Zap size={10} />
+                BATTERY BACKUP ACTIVE
+              </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Zap size={10} className="text-red-600" />
-              <span className="text-red-600">BATTERY BACKUP ACTIVE</span>
-            </div>
-            <div className="flex items-center gap-1.5 border-l border-red-100 pl-3 text-red-800">
-              <ShieldCheck size={10} />
+            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3 text-slate-700 font-semibold">
+              <ShieldCheck size={11} className="text-red-600" />
               <span>SECURE SESSION: ACTIVE ({sessionUser})</span>
-              <span className="text-slate-500">| TTL: {sessionRemaining}s</span>
+              <span className="text-slate-400 font-normal">| TTL: {sessionRemaining}s</span>
             </div>
-            <div className="ml-auto flex items-center gap-1.5">
-              <Clock size={10} />
+            <div className="ml-auto flex items-center gap-1.5 font-semibold">
+              <Clock size={11} />
               <span>UPTIME 04:32:17</span>
             </div>
           </div>
         </main>
 
         {/* Right sidebar */}
-        <aside className="w-64 flex-shrink-0 flex flex-col border-l border-red-100 bg-white">
-          <div className="px-3 py-2.5 border-b border-red-100 bg-red-50/50">
-            <div className="text-[10px] font-mono text-red-600 uppercase tracking-widest font-semibold">
+        <aside className="w-64 flex-shrink-0 flex flex-col bg-white rounded-2xl border border-slate-200/50 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
               Quick Actions
             </div>
           </div>
 
-          <div className="p-3 flex flex-col gap-2">
+          <div className="p-3.5 flex flex-col gap-2.5">
             <button
               onClick={() => setShowBroadcast(true)}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-200 hover:border-red-400 bg-red-50 hover:bg-red-100 text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+              className="flex items-center gap-2 w-full px-3.5 py-3 border border-red-100 hover:border-red-200 bg-red-50/30 hover:bg-red-50 text-red-800 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
             >
-              <Volume2 size={12} />
+              <Volume2 size={13} />
               BROADCAST ALERT
             </button>
             <button
@@ -2643,66 +2699,65 @@ export default function Home() {
                 const first = alerts.find((a) => a.status === "unassigned");
                 if (first) setDispatchTarget(first);
               }}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-800 hover:border-red-800 bg-red-800 hover:bg-red-800 text-white text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+              className="flex items-center gap-2 w-full px-3.5 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md shadow-red-100 hover:shadow-lg"
             >
-              <Navigation size={12} />
+              <Navigation size={13} />
               DISPATCH NEXT SOS
             </button>
             <button
               onClick={() => {
                 setCenterView("victims");
               }}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-100 hover:border-red-300 text-red-500 hover:text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors"
+              className="flex items-center gap-2 w-full px-3.5 py-3 border border-slate-200/70 hover:border-red-200 hover:bg-red-50/20 text-slate-700 hover:text-red-700 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
             >
-              <ClipboardList size={12} />
+              <ClipboardList size={13} />
               VICTIMS DATABASE
             </button>
             <button
               onClick={() => setShowCallRescuerModal(true)}
-              className="flex items-center gap-2 w-full px-3 py-2.5 border border-red-100 hover:border-red-300 text-slate-600 hover:text-red-800 text-[11px] font-semibold tracking-wider rounded-sm transition-colors cursor-pointer"
+              className="flex items-center gap-2 w-full px-3.5 py-3 border border-slate-200/70 hover:border-red-200 hover:bg-red-50/20 text-slate-700 hover:text-red-700 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm hover:shadow-md"
             >
-              <PhoneCall size={12} />
+              <PhoneCall size={13} />
               CALL RESCUER
             </button>
           </div>
 
-          <div className="border-t border-red-100 px-3 py-2.5 bg-red-50/50">
-            <div className="text-[10px] font-mono text-red-600 uppercase tracking-widest font-semibold">
+          <div className="border-t border-slate-100 px-4 py-3 bg-slate-50/50">
+            <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">
               Unassigned SOS
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-red-50">
+          <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 bg-slate-50/30">
             {unassigned.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-                <CheckCircle size={24} className="text-green-400" />
-                <span className="text-[11px] font-mono text-slate-500">All SOS assigned</span>
+              <div className="flex flex-col items-center justify-center gap-2 py-10 px-4 text-center">
+                <CheckCircle size={28} className="text-emerald-500" />
+                <span className="text-[11px] font-semibold text-slate-400 leading-relaxed">All SOS requests assigned</span>
               </div>
             ) : (
               unassigned.map((a) => (
                 <div
                   key={a.id}
-                  className="p-3 transition-colors"
-                  style={{ background: flashCount % 2 === 0 ? "#fff1f1" : "#ffffff" }}
+                  className="p-4 transition-all duration-300 border-b border-slate-100 bg-white"
+                  style={{ background: flashCount % 2 === 0 ? "rgba(254, 242, 242, 0.45)" : "#ffffff" }}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-bold text-red-800">{a.id}</span>
                     <AlertTriangle
-                      size={10}
-                      className={`text-red-800 transition-opacity ${flashCount % 2 === 0 ? "opacity-100" : "opacity-30"}`}
+                      size={11}
+                      className={`text-red-700 transition-opacity ${flashCount % 2 === 0 ? "opacity-100" : "opacity-30"}`}
                     />
                   </div>
-                  <div className="text-xs text-red-900 font-semibold mt-0.5">{a.name}</div>
-                  <div className="text-[10px] font-mono text-slate-600">{a.zone}</div>
+                  <div className="text-xs text-slate-900 font-bold mt-1.5">{a.name}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 mt-0.5">{a.zone}</div>
                   <div
-                    className="text-[10px] font-mono text-slate-500 mt-0.5"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    className="text-[9.5px] font-mono text-slate-400 mt-1 font-bold"
                   >
-                    {a.lat}
+                    📍 {a.lat}
                   </div>
                   <button
                     onClick={() => setDispatchTarget(a)}
-                    className="mt-2 w-full flex items-center justify-center gap-1 py-1.5 bg-red-800 hover:bg-red-800 text-white text-[10px] font-bold tracking-widest rounded-sm transition-colors"
+                    className="mt-3 w-full flex items-center justify-center gap-1 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-[10px] font-bold tracking-wider rounded-lg transition-all shadow-sm shadow-red-100 cursor-pointer"
                   >
                     <ChevronRight size={10} />
                     DISPATCH
@@ -2713,29 +2768,29 @@ export default function Home() {
           </div>
 
           {/* Network summary */}
-          <div className="border-t border-red-100 p-3">
-            <div className="text-[9px] font-mono text-red-700 uppercase tracking-widest mb-2">Network</div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-[10px] font-mono">
+          <div className="border-t border-slate-100 p-4 bg-slate-50/40">
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Network Summary</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[10.5px] font-medium text-slate-600">
                 <div className="flex items-center gap-1.5 text-red-600">
-                  <Wifi size={10} />
-                  <span>Wi-Fi AP</span>
+                  <Wifi size={11} />
+                  <span>Wi-Fi Access Point</span>
                 </div>
-                <span className="text-red-800 font-semibold">ACTIVE</span>
+                <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded text-[8.5px] uppercase">ACTIVE</span>
               </div>
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <Bluetooth size={10} />
-                  <span>BT Mesh</span>
-                </div>
-                <span className="text-slate-500">3 NODES</span>
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-mono">
+              <div className="flex items-center justify-between text-[10.5px] font-medium text-slate-600">
                 <div className="flex items-center gap-1.5 text-slate-500">
-                  <Radio size={10} />
-                  <span>Internet</span>
+                  <Bluetooth size={11} />
+                  <span>Bluetooth Mesh</span>
                 </div>
-                <span className="text-slate-500 line-through">BLACKOUT</span>
+                <span className="text-slate-600 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-[8.5px] uppercase">3 NODES</span>
+              </div>
+              <div className="flex items-center justify-between text-[10.5px] font-medium text-slate-600">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <Radio size={11} />
+                  <span>Internet Connection</span>
+                </div>
+                <span className="text-red-700 font-bold bg-red-50 px-1.5 py-0.5 rounded text-[8.5px] uppercase line-through">BLACKOUT</span>
               </div>
             </div>
           </div>

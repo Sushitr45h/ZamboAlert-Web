@@ -123,28 +123,39 @@ function createTables() {
         location TEXT,
         latitude REAL,
         longitude REAL,
+        disaster_type TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `, () => {
-      // Seed data if empty
-      db.get("SELECT COUNT(*) as count FROM casualty_logs", (err, row) => {
-        if (!err && row && row.count === 0) {
-          const seedLogs = [
-            ["R-01", "Rescue Team Alpha", "Maria Santos", 34, "Female", "Injured", "Fractured left arm, stable", "Zone 1 - Riverbank", 6.9234, 122.0765],
-            ["R-02", "Medic Unit 1", "Unknown Male", 50, "Male", "Deceased", "Drowning victim, recovered near bridge", "Zone 3 - Lowland", 6.9205, 122.0812],
-            ["R-01", "Rescue Team Alpha", "Juanito Cruz", 8, "Male", "Rescued", "Mild hypothermia, reunited with mother", "Zone 4 - Chapel Area", 6.9250, 122.0795],
-            ["R-03", "Rescue Team Beta", "Amara Climaco", 72, "Female", "Missing", "Swept away by current, search ongoing", "Zone 1 - Riverbank", 6.9240, 122.0770]
-          ];
-          const stmt = db.prepare(`
-            INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
-          seedLogs.forEach((log) => {
-            stmt.run(log);
-          });
-          stmt.finalize();
-          console.log("Seeded casualty logs table.");
-        }
+      // Alter table fallback to add disaster_type to existing installations
+      db.run("ALTER TABLE casualty_logs ADD COLUMN disaster_type TEXT", (err) => {
+        // Now that the column is guaranteed to exist (either created just now or already present):
+        
+        // Update existing records with default disaster types if they are null
+        db.run("UPDATE casualty_logs SET disaster_type = 'Flood' WHERE disaster_type IS NULL AND (victim_name = 'Maria Santos' OR victim_name = 'Juanito Cruz')");
+        db.run("UPDATE casualty_logs SET disaster_type = 'Landslide' WHERE disaster_type IS NULL AND (victim_name = 'Unknown Male' OR victim_name = 'Amara Climaco')");
+        db.run("UPDATE casualty_logs SET disaster_type = 'Unknown' WHERE disaster_type IS NULL");
+
+        // Seed data if empty
+        db.get("SELECT COUNT(*) as count FROM casualty_logs", (err, row) => {
+          if (!err && row && row.count === 0) {
+            const seedLogs = [
+              ["R-01", "Rescue Team Alpha", "Maria Santos", 34, "Female", "Injured", "Fractured left arm, stable", "Zone 1 - Riverbank", 6.9234, 122.0765, "Flood"],
+              ["R-02", "Medic Unit 1", "Unknown Male", 50, "Male", "Deceased", "Drowning victim, recovered near bridge", "Zone 3 - Lowland", 6.9205, 122.0812, "Landslide"],
+              ["R-01", "Rescue Team Alpha", "Juanito Cruz", 8, "Male", "Rescued", "Mild hypothermia, reunited with mother", "Zone 4 - Chapel Area", 6.9250, 122.0795, "Flood"],
+              ["R-03", "Rescue Team Beta", "Amara Climaco", 72, "Female", "Missing", "Swept away by current, search ongoing", "Zone 1 - Riverbank", 6.9240, 122.0770, "Landslide"]
+            ];
+            const stmt = db.prepare(`
+              INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude, disaster_type)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            seedLogs.forEach((log) => {
+              stmt.run(log);
+            });
+            stmt.finalize();
+            console.log("Seeded casualty logs table.");
+          }
+        });
       });
     });
 
@@ -595,15 +606,15 @@ app.get("/api/logs/casualties", (req, res) => {
 });
 
 app.post("/api/logs/casualties", (req, res) => {
-  const { rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude } = req.body;
+  const { rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude, disaster_type } = req.body;
 
   if (!victim_name || !status) {
     return res.status(400).json({ message: "Victim name and status are required fields." });
   }
 
   db.run(
-    `INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO casualty_logs (rescuer_id, rescuer_name, victim_name, age, gender, status, injury_details, location, latitude, longitude, disaster_type)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       rescuer_id || null,
       rescuer_name || null,
@@ -614,7 +625,8 @@ app.post("/api/logs/casualties", (req, res) => {
       injury_details || null,
       location || null,
       latitude ? parseFloat(latitude) : null,
-      longitude ? parseFloat(longitude) : null
+      longitude ? parseFloat(longitude) : null,
+      disaster_type || "Unknown"
     ],
     function (err) {
       if (err) {
