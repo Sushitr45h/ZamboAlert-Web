@@ -975,6 +975,7 @@ function SettingsModal({
   rescuers,
   onToggleSetting,
   onVerifyRescuer,
+  onRejectRescuer,
   onClose,
   onLogout,
 }) {
@@ -1043,13 +1044,22 @@ function SettingsModal({
                       <div>ID Number: {r.idNumber}</div>
                       <div>Contact Info: {r.unit}</div>
                     </div>
-                    <button
-                      onClick={() => onVerifyRescuer(r.dbId)}
-                      className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <CheckCircle size={10} />
-                      Approve & Verify Rescuer
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onRejectRescuer(r.dbId)}
+                        className="flex-1 py-1.5 border border-slate-200 hover:border-red-200 hover:bg-red-50 text-slate-600 hover:text-red-700 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <X size={10} />
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => onVerifyRescuer(r.dbId)}
+                        className="flex-grow-[2] py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <CheckCircle size={10} />
+                        Approve & Verify
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1970,6 +1980,24 @@ export default function Home() {
     }
   };
 
+  const handleRejectRescuer = async (dbId) => {
+    if (!window.confirm("Are you sure you want to reject and delete this registration request?")) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/rescuers/${dbId}`, {
+        method: "DELETE"
+      });
+      if (response.ok) {
+        fetchRescuers();
+      } else {
+        const errData = await response.json();
+        alert(errData.message || "Failed to reject rescuer");
+      }
+    } catch (err) {
+      console.error("Connection error", err);
+      alert("Failed to connect to backend server");
+    }
+  };
+
   const fetchCasualtyLogs = async () => {
     setIsFetchingCasualties(true);
     try {
@@ -2238,21 +2266,27 @@ export default function Home() {
           <div className="flex bg-slate-100/70 p-1 rounded-xl mx-3.5 my-3 border border-slate-200/40">
             {[
               { key: "alerts", label: "SOS", icon: AlertTriangle },
-              { key: "rescuers", label: "RESCUERS", icon: Users },
+              { key: "rescuers", label: "UNITS", icon: Users },
+              { key: "approvals", label: "APPROVE", icon: ShieldCheck, badge: rescuers.filter(r => !r.isVerified).length },
               { key: "casualties", label: "RECORDS", icon: ClipboardList },
               { key: "nodes", label: "MESH", icon: Radio },
-            ].map(({ key, label, icon: Icon }) => (
+            ].map(({ key, label, icon: Icon, badge }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[9px] font-bold tracking-wider rounded-lg transition-all cursor-pointer ${
+                className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 text-[8px] sm:text-[8.5px] font-bold tracking-wider rounded-lg transition-all cursor-pointer relative ${
                   activeTab === key
                     ? "bg-white text-red-700 shadow-sm border border-slate-200/10 font-black"
                     : "text-slate-500 hover:text-slate-800"
                 }`}
               >
                 <Icon size={12} />
-                {label}
+                <span>{label}</span>
+                {badge > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-[8px] font-black text-white shadow-sm animate-pulse">
+                    {badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -2448,47 +2482,22 @@ export default function Home() {
             {activeTab === "rescuers" && (
               <div className="flex flex-col">
                 
-                {/* Pending Verification Section */}
+                {/* Pending Verification Banner */}
                 {rescuers.some(r => !r.isVerified) && (
-                  <div className="bg-amber-50/40 p-4 border-b border-amber-200/50">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <ShieldAlert size={15} className="text-amber-700 animate-pulse" />
-                      <h4 className="text-[10px] font-bold text-amber-800 tracking-wider uppercase">Pending Verification</h4>
+                  <div className="bg-amber-50/30 p-3.5 border-b border-amber-200/40 flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <ShieldAlert size={14} className="text-amber-700 animate-pulse flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-amber-800 uppercase">Requests Pending</div>
+                        <div className="text-[8.5px] text-amber-600 truncate">{rescuers.filter(r => !r.isVerified).length} unverified registration(s)</div>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-3">
-                      {rescuers.filter(r => !r.isVerified).map(r => (
-                        <div key={r.id} className="bg-white p-4 rounded-xl border border-amber-200/60 shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
-                              {r.idType}
-                            </span>
-                            <span className="text-[10px] font-mono text-slate-500">
-                              {r.idNumber}
-                            </span>
-                          </div>
-                          <div className="mt-2 text-xs font-bold text-slate-900">{r.name}</div>
-                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">{r.email}</div>
-                          <div className="text-[10px] text-slate-600 mt-1">Contact: {r.unit}</div>
-                          
-                          {/* Simulated ID Photo Preview */}
-                          <div className="mt-2.5 p-2 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">ID</div>
-                            <div className="flex-1">
-                              <div className="text-[9px] font-bold text-slate-700 font-mono">id_photo.jpg</div>
-                              <div className="text-[8px] text-slate-400">Simulated Uploaded Document</div>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={() => handleVerifyRescuer(r.dbId)}
-                            className="mt-3 w-full py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all shadow-sm shadow-amber-100 cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <CheckCircle size={11} />
-                            Approve & Verify
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <button
+                      onClick={() => setActiveTab("approvals")}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      Review
+                    </button>
                   </div>
                 )}
 
@@ -2535,6 +2544,111 @@ export default function Home() {
                   )}
                 </div>
 
+              </div>
+            )}
+
+            {/* Approvals Tab */}
+            {activeTab === "approvals" && (
+              <div className="flex flex-col">
+                <div className="p-4 border-b border-slate-150 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert size={15} className="text-red-700" />
+                    <h4 className="text-[10px] font-bold text-slate-800 tracking-wider uppercase">
+                      Official Approvals
+                    </h4>
+                  </div>
+                  <span className="text-[9.5px] font-bold font-mono text-red-700 bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full animate-pulse">
+                    {rescuers.filter(r => !r.isVerified).length} Pending
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-3.5 p-4 max-h-[calc(100vh-230px)] overflow-y-auto custom-scrollbar">
+                  {rescuers.filter(r => !r.isVerified).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-center">
+                      <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100/40">
+                        <ShieldCheck size={20} className="text-emerald-600" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold text-slate-800 uppercase">System fully verified</div>
+                        <p className="text-[9.5px] text-slate-400 mt-1 leading-normal max-w-[200px] mx-auto">
+                          No pending registration requests from the ZamboAlert mobile app.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    rescuers.filter(r => !r.isVerified).map((r) => {
+                      const idTypeUpper = (r.idType || "").toUpperCase();
+                      const isBarangay = idTypeUpper.includes("BARANGAY") || idTypeUpper.includes("BRGY");
+                      const isCdrrmo = idTypeUpper.includes("CDRRMO") || idTypeUpper.includes("CITY") || idTypeUpper.includes("GOV");
+                      
+                      let officialBadgeColor = "bg-slate-100 text-slate-700 border-slate-200/50";
+                      let officialLabel = "PENDING VOLUNTEER";
+                      
+                      if (isBarangay) {
+                        officialBadgeColor = "bg-red-50 text-red-750 border-red-200/60";
+                        officialLabel = "BARANGAY OFFICIAL (LEGIT)";
+                      } else if (isCdrrmo) {
+                        officialBadgeColor = "bg-blue-50 text-blue-750 border-blue-200/60";
+                        officialLabel = "CDRRMO OFFICIAL (LEGIT)";
+                      }
+
+                      return (
+                        <div key={r.id} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-350/80 transition-all duration-200">
+                          <div className="flex items-center justify-between gap-2.5">
+                            <span className={`text-[8.5px] font-bold tracking-wider px-2 py-0.5 rounded-full border uppercase ${officialBadgeColor}`}>
+                              {officialLabel}
+                            </span>
+                            <span className="text-[8px] font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/30">
+                              {r.idType}
+                            </span>
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="text-xs font-bold text-slate-850">{r.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">{r.email}</div>
+                          </div>
+
+                          <div className="mt-3 pt-3 border-t border-slate-100/80 grid grid-cols-2 gap-2 text-[10.5px] text-slate-600 font-mono">
+                            <div>
+                              <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">ID NUMBER</div>
+                              <div className="font-semibold text-slate-800 truncate mt-0.5">{r.idNumber}</div>
+                            </div>
+                            <div>
+                              <div className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">CONTACT</div>
+                              <div className="font-semibold text-slate-800 truncate mt-0.5">{r.unit || "N/A"}</div>
+                            </div>
+                          </div>
+
+                          {/* ID Document Preview (Simulated) */}
+                          <div className="mt-3.5 p-2 bg-slate-50 rounded-lg border border-slate-150 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 border border-slate-300/30">ID</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[9px] font-bold text-slate-700 font-mono truncate">official_credentials.pdf</div>
+                              <div className="text-[8px] text-slate-400 font-medium">Click to inspect uploaded credentials</div>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleRejectRescuer(r.dbId)}
+                              className="flex-1 py-1.5 border border-slate-250 hover:border-red-200 hover:bg-red-50 text-slate-600 hover:text-red-700 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer text-center flex items-center justify-center gap-1"
+                            >
+                              <X size={10} />
+                              Reject
+                            </button>
+                            <button
+                              onClick={() => handleVerifyRescuer(r.dbId)}
+                              className="flex-grow-[2] py-1.5 bg-gradient-to-r from-red-650 to-red-750 hover:from-red-700 hover:to-red-800 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all shadow-sm shadow-red-100 cursor-pointer text-center flex items-center justify-center gap-1"
+                            >
+                              <CheckCircle size={10} />
+                              Approve
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             )}
 
@@ -2830,6 +2944,7 @@ export default function Home() {
           rescuers={rescuers}
           onToggleSetting={handleToggleSetting}
           onVerifyRescuer={handleVerifyRescuer}
+          onRejectRescuer={handleRejectRescuer}
           onClose={() => setShowSettingsModal(false)}
           onLogout={handleLogout}
         />
