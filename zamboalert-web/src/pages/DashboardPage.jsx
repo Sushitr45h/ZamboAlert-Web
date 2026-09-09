@@ -1138,20 +1138,6 @@ function AutoCallZcdrrmoModal({ alerts, casualties, onClose }) {
       alt: "0917-891-9911 / 911 Direct",
       facility: "Mayor Vitaliano Agan Ave, Camino Nuevo",
       badge: "Central HQ"
-    },
-    cdrr_911: {
-      name: "Zamboanga City 911 Central Dispatch Desk",
-      hotline: "911 / (062) 992-3111",
-      alt: "VHF Ch 144.750 MHz",
-      facility: "City Hall Operations Wing",
-      badge: "911 Dispatch"
-    },
-    bfp_rescue: {
-      name: "Zamboanga Central Fire & Rescue Disaster Base",
-      hotline: "(062) 991-2222",
-      alt: "0998-598-7123",
-      facility: "Mayor Jaldon St. Sub-Station",
-      badge: "Water & Fire Rescue"
     }
   };
 
@@ -1457,7 +1443,7 @@ function AutoCallZcdrrmoModal({ alerts, casualties, onClose }) {
                     className="w-full p-3 bg-slate-900 text-slate-100 rounded-xl text-xs font-mono leading-relaxed border border-slate-800 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none resize-y min-h-[90px] disabled:opacity-75"
                   />
                   <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
-                    <span>💡 Enter your custom message above before previewing or initiating the call.</span>
+                    <span> Enter your custom message above before previewing or initiating the call.</span>
                     <span>{scriptText.length} chars</span>
                   </div>
                 </div>
