@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
   --color-background: var(--background);
@@ -35,65 +35,52 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
   --font-size: 14px;
-  --background: #ffffff;
-  --foreground: #1a0505;
-  --card: #fafafa;
-  --card-foreground: #1a0505;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #1a0505;
+  --popover-foreground: #0f172a;
   --primary: #dc2626;
   --primary-foreground: #ffffff;
-  --secondary: #fff1f1;
-  --secondary-foreground: #7f1d1d;
-  --muted: #fef2f2;
-  --muted-foreground: #b91c1c;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
   --accent: #dc2626;
   --accent-foreground: #ffffff;
-  --destructive: #991b1b;
+  --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: rgba(220, 38, 38, 0.15);
-  --input: #fff1f1;
-  --input-background: #fff1f1;
-  --switch-background: #fca5a5;
+  --border: #e2e8f0;
+  --input: #f8fafc;
+  --input-background: #ffffff;
+  --switch-background: #cbd5e1;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #dc2626;
+  --ring: rgba(220, 38, 38, 0.3);
   --chart-1: #dc2626;
   --chart-2: #ef4444;
-  --chart-3: #f87171;
-  --chart-4: #fca5a5;
-  --chart-5: #991b1b;
-  --radius: 0.375rem;
-  --sidebar: #fff5f5;
-  --sidebar-foreground: #1a0505;
-  --sidebar-primary: #dc2626;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fff1f1;
-  --sidebar-accent-foreground: #7f1d1d;
-  --sidebar-border: rgba(220, 38, 38, 0.12);
-  --sidebar-ring: #dc2626;
+  --chart-3: #f97316;
+  --chart-4: #0284c7;
+  --chart-5: #10b981;
+  --radius: 0.75rem;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html {
@@ -103,25 +90,23 @@
 
 /* Custom Leaflet overrides */
 .leaflet-container {
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  background-color: #f1f5f9 !important;
 }
 
 .custom-building-tooltip {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 1px solid rgba(220, 38, 38, 0.25) !important;
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   color: #f8fafc !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-  border-radius: 4px !important;
-  padding: 4px 8px !important;
-  font-size: 9px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  backdrop-filter: blur(8px) !important;
 }
 
 .custom-building-tooltip::before {
-  border-top-color: rgba(15, 23, 42, 0.95) !important;
-}
-
-.leaflet-tooltip-top.custom-building-tooltip::before {
-  border-top-color: rgba(15, 23, 42, 0.95) !important;
+  border-top-color: rgba(15, 23, 42, 0.92) !important;
 }
 
 .custom-sos-marker, .custom-rescuer-marker, .custom-casualty-marker, .custom-building-marker {
@@ -129,7 +114,7 @@
   border: none !important;
 }
 
-/* Circular Web Detection & Animations */
+/* Radar & Signal Animations */
 @keyframes rotate-radar {
   from {
     stroke-dashoffset: 0;
@@ -141,22 +126,22 @@
 
 @keyframes pulse-glow {
   0% {
-    fill-opacity: 0.04;
-    stroke-opacity: 0.5;
+    fill-opacity: 0.03;
+    stroke-opacity: 0.4;
   }
   100% {
-    fill-opacity: 0.15;
-    stroke-opacity: 0.95;
+    fill-opacity: 0.12;
+    stroke-opacity: 0.9;
   }
 }
 
 @keyframes pulse-cyan {
   0% {
     fill-opacity: 0.02;
-    stroke-opacity: 0.4;
+    stroke-opacity: 0.3;
   }
   100% {
-    fill-opacity: 0.12;
+    fill-opacity: 0.10;
     stroke-opacity: 0.85;
   }
 }
@@ -164,7 +149,7 @@
 @keyframes pulse-orange {
   0% {
     fill-opacity: 0.01;
-    stroke-opacity: 0.3;
+    stroke-opacity: 0.25;
   }
   100% {
     fill-opacity: 0.08;
@@ -212,12 +197,12 @@
 
 @keyframes pulse-border-red {
   0%, 100% {
-    border-color: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.2);
     box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
   }
   50% {
-    border-color: rgba(220, 38, 38, 0.45);
-    box-shadow: 0 0 8px 1px rgba(220, 38, 38, 0.06);
+    border-color: rgba(220, 38, 38, 0.6);
+    box-shadow: 0 0 12px 2px rgba(220, 38, 38, 0.15);
   }
 }
 
@@ -225,18 +210,18 @@
   animation: pulse-border-red 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Custom scrollbar styling for a cleaner look */
+/* Custom modern scrollbar styling */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(220, 38, 38, 0.1);
-  border-radius: 10px;
+  background: #cbd5e1;
+  border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(220, 38, 38, 0.25);
+  background: #94a3b8;
 }

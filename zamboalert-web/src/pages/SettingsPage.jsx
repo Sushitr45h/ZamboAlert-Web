@@ -33,7 +33,8 @@ import {
   Signal,
   Check,
   X,
-  FileText
+  FileText,
+  Compass
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -74,6 +75,7 @@ export default function SettingsPage() {
     emailAlerts: true,
     browserSound: true,
     highPrioritySMS: true,
+    autoCallZcdrrmo: true,
     weeklyReport: false
   });
 
@@ -154,7 +156,7 @@ export default function SettingsPage() {
 
       const url = mapType === "satellite"
         ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
       const tileLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(map);
       tileLayerRef.current = tileLayer;
@@ -238,7 +240,7 @@ export default function SettingsPage() {
 
     const url = mapType === "satellite"
       ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-      : "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png";
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
     const tileLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(mapRef.current);
     tileLayerRef.current = tileLayer;
@@ -419,32 +421,39 @@ export default function SettingsPage() {
       )}
 
       {/* --- Top Navbar --- */}
-      <header className="bg-white border-b border-red-100/60 sticky top-0 z-[100] h-12 flex items-center px-4 justify-between select-none">
+      <header className="h-16 px-6 bg-white border-b border-slate-200 sticky top-0 z-[100] flex items-center justify-between select-none">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center justify-center w-7 h-7 rounded hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer border border-slate-100"
+            className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors cursor-pointer border border-slate-200"
             title="Back to Tactical Dashboard"
           >
             <ArrowLeft size={16} />
           </button>
-          <div className="h-4 w-px bg-slate-200" />
-          <div className="flex items-center gap-2">
-            <Settings size={15} className="text-red-600 animate-spin-slow" />
-            <span className="text-xs font-bold font-mono tracking-wider uppercase text-slate-900">
-              ZamboAlert
-            </span>
-            <span className="text-[10px] font-semibold bg-red-50 text-red-700 border border-red-100/70 px-1.5 py-0.5 rounded font-mono uppercase tracking-widest">
-              Settings Panel
-            </span>
+          <div className="h-5 w-px bg-slate-200" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100">
+              <Settings size={16} />
+            </div>
+            <div>
+              <span className="text-sm font-extrabold text-slate-900 tracking-tight leading-none block">
+                System & Account Settings
+              </span>
+              <span className="text-[10px] font-medium text-slate-500 block mt-0.5">
+                Barangay Tumaga Command Node
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex flex-col text-right">
-            <span className="text-[10px] font-bold text-slate-700 leading-tight">Barangay Tumaga Control</span>
-            <span className="text-[8px] font-mono text-slate-500 tracking-wider">Zamboanga City, PH</span>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Compass size={14} />
+            <span>Dashboard</span>
+          </button>
         </div>
       </header>
 
@@ -709,6 +718,7 @@ export default function SettingsPage() {
                           { id: "emailAlerts", label: "Incident Email Alerts", desc: "Receive email reports for every unresolved critical incident." },
                           { id: "browserSound", label: "Browser Alert Alarm", desc: "Play critical sirens/beeps on tactical dashboard during SOS triggers." },
                           { id: "highPrioritySMS", label: "Urgent SMS Announcements", desc: "Mirror SOS notifications to community council mobile phones." },
+                          { id: "autoCallZcdrrmo", label: "Auto-Call Main ZCDRRMO Office", desc: "Automate voice hotline calls to ZCDRRMO Command Center on Level 3 critical SOS triggers." },
                           { id: "weeklyReport", label: "Weekly Dispatch Report", desc: "Email automated weekly stats logs to Barangay Captain." }
                         ].map((notif) => (
                           <div key={notif.id} className="flex items-start justify-between gap-4">

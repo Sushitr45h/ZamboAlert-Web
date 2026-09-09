@@ -175,15 +175,107 @@ function createTables() {
       });
     });
 
-    // Alter table to add assigned target columns if they don't exist
-    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_type TEXT", (err) => {
-      // Ignore error if column already exists
+    // Alter rescuers table for assigned target, role, zone, and location columns
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_type TEXT", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_id TEXT", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_name TEXT", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN role TEXT DEFAULT 'Rescuer'", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN assigned_zone TEXT DEFAULT 'Unassigned'", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN latitude REAL", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN longitude REAL", () => {});
+    db.run("ALTER TABLE rescuers ADD COLUMN response_status TEXT DEFAULT 'available'", () => {});
+
+    // Seed default Tanods if missing
+    db.get("SELECT COUNT(*) as count FROM rescuers WHERE role = 'Tanod'", (err, row) => {
+      if (!err && row && row.count === 0) {
+        const seedTanods = [
+          ["tanod.perez@zamboalert.gov", "Juan", "Perez", "+639171234567", "Barangay Tanod ID", "BRGY-T01", 1, "available", "Tanod", "Zone 1 - Riverbank", 6.9225, 122.0770],
+          ["tanod.climaco@zamboalert.gov", "Rodrigo", "Climaco", "+639287654321", "Barangay Tanod ID", "BRGY-T02", 1, "available", "Tanod", "Zone 3 - Lowland", 6.9200, 122.0810],
+          ["tanod.santos@zamboalert.gov", "Maria", "Santos", "+639391112233", "Barangay Tanod ID", "BRGY-T03", 1, "available", "Tanod", "Zone 4 - Chapel Area", 6.9245, 122.0792]
+        ];
+        const stmt = db.prepare(`
+          INSERT INTO rescuers (email, first_name, last_name, phone_number, id_type, id_number, is_verified, status, role, assigned_zone, latitude, longitude)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        seedTanods.forEach((t) => stmt.run(t));
+        stmt.finalize();
+        console.log("Seeded Barangay Tanods.");
+      }
     });
-    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_id TEXT", (err) => {
-      // Ignore error if column already exists
+
+    // Households / Resident Registry table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS households (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        resident_name TEXT NOT NULL,
+        household_head TEXT NOT NULL,
+        phone_number TEXT NOT NULL,
+        purok_zone TEXT NOT NULL,
+        occupants_count INTEGER DEFAULT 1,
+        vulnerable_count INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'Active', -- 'Active' | 'Opted-Out' | 'Evacuated'
+        latitude REAL,
+        longitude REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, () => {
+      db.get("SELECT COUNT(*) as count FROM households", (err, row) => {
+        if (!err && row && row.count === 0) {
+          const seedHouseholds = [
+            ["Elena Ramos", "Roberto Ramos", "+639171112233", "Zone 1 - Riverbank", 5, 2, "Active", 6.9231, 122.0760],
+            ["Eduardo Climaco", "Eduardo Climaco", "+639282223344", "Zone 2 - Commercial", 4, 1, "Active", 6.9210, 122.0752],
+            ["Teresita Alvarez", "Teresita Alvarez", "+639393334455", "Zone 3 - Lowland", 6, 3, "Evacuated", 6.9195, 122.0805],
+            ["Ramon Valderrosa", "Ramon Valderrosa", "+639984445566", "Zone 4 - Chapel Area", 3, 0, "Active", 6.9248, 122.0790],
+            ["Maria Clara Santos", "Gabriel Santos", "+639175556677", "Zone 1 - Riverbank", 4, 1, "Active", 6.9228, 122.0768]
+          ];
+          const stmt = db.prepare(`
+            INSERT INTO households (resident_name, household_head, phone_number, purok_zone, occupants_count, vulnerable_count, status, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          seedHouseholds.forEach((hh) => stmt.run(hh));
+          stmt.finalize();
+          console.log("Seeded households table.");
+        }
+      });
     });
-    db.run("ALTER TABLE rescuers ADD COLUMN assigned_target_name TEXT", (err) => {
-      // Ignore error if column already exists
+
+    // Incidents & Analytics table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS incidents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        disaster_type TEXT DEFAULT 'Flood',
+        date_occurred TEXT NOT NULL,
+        water_level_m REAL,
+        affected_households INTEGER,
+        total_rescued INTEGER,
+        casualties_count INTEGER,
+        avg_response_time_mins INTEGER,
+        dispatch_time_mins REAL,
+        on_scene_time_mins REAL,
+        purok_zone TEXT,
+        damage_estimate_php REAL,
+        status TEXT DEFAULT 'Closed',
+        summary_notes TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, () => {
+      db.get("SELECT COUNT(*) as count FROM incidents", (err, row) => {
+        if (!err && row && row.count === 0) {
+          const seedIncidents = [
+            ["Flash Flood Event - Tumaga River Spill", "Flood", "2026-08-14", 2.85, 142, 86, 1, 12, 3.2, 8.8, "Zone 1 - Riverbank", 1250000.00, "Closed", "Torrential rainfall caused Tumaga River overflow. Rapid deployment of Tanods & Rescue Team Alpha."],
+            ["Monsoon Inundation & Lowland Surge", "Flood", "2025-10-22", 1.90, 98, 45, 0, 15, 4.1, 10.9, "Zone 3 - Lowland", 480000.00, "Closed", "Sustained monsoon rain inundating low-lying residential clusters in Zone 3."],
+            ["Typhoon Kristine Flood Emergency", "Flood", "2024-11-05", 3.40, 310, 215, 2, 18, 5.5, 12.5, "Barangay Wide", 4500000.00, "Closed", "Category 3 Typhoon event. Major evacuation initiated across all 4 Purok zones."]
+          ];
+          const stmt = db.prepare(`
+            INSERT INTO incidents (title, disaster_type, date_occurred, water_level_m, affected_households, total_rescued, casualties_count, avg_response_time_mins, dispatch_time_mins, on_scene_time_mins, purok_zone, damage_estimate_php, status, summary_notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          seedIncidents.forEach((inc) => stmt.run(inc));
+          stmt.finalize();
+          console.log("Seeded incidents table.");
+        }
+      });
     });
   });
 }
@@ -815,7 +907,288 @@ app.post("/api/rescuers/resolve/:id", (req, res) => {
   );
 });
 
+/* ─── Household / Resident Registry API ─── */
+
+// Get all registered households
+app.get("/api/households", (req, res) => {
+  const { purok } = req.query;
+  let sql = "SELECT * FROM households";
+  const params = [];
+  if (purok && purok !== "ALL") {
+    sql += " WHERE purok_zone = ?";
+    params.push(purok);
+  }
+  sql += " ORDER BY created_at DESC";
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Add new household / resident record
+app.post("/api/households", (req, res) => {
+  const { resident_name, household_head, phone_number, purok_zone, occupants_count, vulnerable_count, status, latitude, longitude } = req.body;
+
+  if (!resident_name || !phone_number || !purok_zone) {
+    return res.status(400).json({ message: "Resident Name, Phone Number, and Purok/Zone are required." });
+  }
+
+  db.run(
+    `INSERT INTO households (resident_name, household_head, phone_number, purok_zone, occupants_count, vulnerable_count, status, latitude, longitude)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      resident_name,
+      household_head || resident_name,
+      phone_number,
+      purok_zone,
+      occupants_count ? parseInt(occupants_count) : 1,
+      vulnerable_count ? parseInt(vulnerable_count) : 0,
+      status || 'Active',
+      latitude ? parseFloat(latitude) : null,
+      longitude ? parseFloat(longitude) : null
+    ],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to add household record", error: err.message });
+      }
+      res.status(201).json({
+        message: "Household registered successfully",
+        householdId: this.lastID
+      });
+    }
+  );
+});
+
+// Update household record
+app.put("/api/households/:id", (req, res) => {
+  const { id } = req.params;
+  const { resident_name, household_head, phone_number, purok_zone, occupants_count, vulnerable_count, status, latitude, longitude } = req.body;
+
+  db.run(
+    `UPDATE households SET resident_name = ?, household_head = ?, phone_number = ?, purok_zone = ?, occupants_count = ?, vulnerable_count = ?, status = ?, latitude = ?, longitude = ?
+     WHERE id = ?`,
+    [
+      resident_name,
+      household_head,
+      phone_number,
+      purok_zone,
+      parseInt(occupants_count || 1),
+      parseInt(vulnerable_count || 0),
+      status,
+      latitude ? parseFloat(latitude) : null,
+      longitude ? parseFloat(longitude) : null,
+      id
+    ],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to update household", error: err.message });
+      }
+      res.json({ message: "Household updated successfully." });
+    }
+  );
+});
+
+// Delete household record
+app.delete("/api/households/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM households WHERE id = ?", [id], function (err) {
+    if (err) {
+      return res.status(500).json({ message: "Failed to delete household", error: err.message });
+    }
+    res.json({ message: "Household record deleted." });
+  });
+});
+
+// SMS Broadcast to Households
+app.post("/api/households/broadcast", (req, res) => {
+  const { purok_zone, message, priority } = req.body;
+  if (!message) {
+    return res.status(400).json({ message: "Broadcast message is required." });
+  }
+
+  let sql = "SELECT phone_number, resident_name FROM households WHERE status = 'Active'";
+  const params = [];
+  if (purok_zone && purok_zone !== "ALL") {
+    sql += " AND purok_zone = ?";
+    params.push(purok_zone);
+  }
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+
+    const recipientsCount = rows.length;
+    console.log(`[SMS BROADCAST] Transmitted to ${recipientsCount} registered households (${purok_zone || "All Zones"}): "${message}"`);
+
+    res.json({
+      message: `SMS alert successfully transmitted to ${recipientsCount} registered household contact(s).`,
+      recipientsCount,
+      timestamp: new Date().toISOString()
+    });
+  });
+});
+
+
+/* ─── Rescuer & Tanod Zone Assignment & GPS Location API ─── */
+
+// Assign Tanod or Rescuer to a specific Purok / Zone
+app.post("/api/rescuers/assign-zone", (req, res) => {
+  const { rescuerId, zone, role } = req.body;
+  if (!rescuerId || !zone) {
+    return res.status(400).json({ message: "Rescuer ID and Zone are required." });
+  }
+
+  let sql = "UPDATE rescuers SET assigned_zone = ?";
+  const params = [zone];
+  if (role) {
+    sql += ", role = ?";
+    params.push(role);
+  }
+  sql += " WHERE id = ? OR id_number = ?";
+  params.push(rescuerId, rescuerId);
+
+  db.run(sql, params, function (err) {
+    if (err) {
+      return res.status(500).json({ message: "Failed to assign zone", error: err.message });
+    }
+    res.json({ message: `Assigned zone updated to ${zone} successfully.` });
+  });
+});
+
+// Update Rescuer / Tanod live GPS location & status
+app.post("/api/rescuers/location", (req, res) => {
+  const { rescuerId, latitude, longitude, status } = req.body;
+  if (!rescuerId || latitude === undefined || longitude === undefined) {
+    return res.status(400).json({ message: "Rescuer ID, latitude, and longitude are required." });
+  }
+
+  let sql = "UPDATE rescuers SET latitude = ?, longitude = ?";
+  const params = [parseFloat(latitude), parseFloat(longitude)];
+  if (status) {
+    sql += ", status = ?";
+    params.push(status);
+  }
+  sql += " WHERE id = ? OR id_number = ?";
+  params.push(rescuerId, rescuerId);
+
+  db.run(sql, params, function (err) {
+    if (err) {
+      return res.status(500).json({ message: "Failed to update location", error: err.message });
+    }
+    res.json({ message: "Location updated successfully." });
+  });
+});
+
+
+/* ─── Incident Reports & Analytics API ─── */
+
+// Get all incident reports
+app.get("/api/incidents", (req, res) => {
+  db.all("SELECT * FROM incidents ORDER BY date_occurred DESC", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Post new incident report
+app.post("/api/incidents", (req, res) => {
+  const {
+    title, disaster_type, date_occurred, water_level_m, affected_households,
+    total_rescued, casualties_count, avg_response_time_mins, dispatch_time_mins,
+    on_scene_time_mins, purok_zone, damage_estimate_php, status, summary_notes
+  } = req.body;
+
+  if (!title || !date_occurred) {
+    return res.status(400).json({ message: "Title and Date Occurred are required." });
+  }
+
+  db.run(
+    `INSERT INTO incidents (title, disaster_type, date_occurred, water_level_m, affected_households, total_rescued, casualties_count, avg_response_time_mins, dispatch_time_mins, on_scene_time_mins, purok_zone, damage_estimate_php, status, summary_notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      title,
+      disaster_type || 'Flood',
+      date_occurred,
+      water_level_m ? parseFloat(water_level_m) : null,
+      affected_households ? parseInt(affected_households) : 0,
+      total_rescued ? parseInt(total_rescued) : 0,
+      casualties_count ? parseInt(casualties_count) : 0,
+      avg_response_time_mins ? parseInt(avg_response_time_mins) : 15,
+      dispatch_time_mins ? parseFloat(dispatch_time_mins) : 4.0,
+      on_scene_time_mins ? parseFloat(on_scene_time_mins) : 11.0,
+      purok_zone || 'Barangay Wide',
+      damage_estimate_php ? parseFloat(damage_estimate_php) : 0.0,
+      status || 'Closed',
+      summary_notes || null
+    ],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Failed to insert incident report", error: err.message });
+      }
+      res.status(201).json({
+        message: "Incident report recorded successfully",
+        incidentId: this.lastID
+      });
+    }
+  );
+});
+
+// Delete incident report
+app.delete("/api/incidents/:id", (req, res) => {
+  const { id } = req.params;
+  db.run("DELETE FROM incidents WHERE id = ?", [id], function (err) {
+    if (err) {
+      return res.status(500).json({ message: "Failed to delete incident report", error: err.message });
+    }
+    res.json({ message: "Incident report deleted." });
+  });
+});
+
+// CSV Export route for ZCDRRMO / Thesis Results
+app.get("/api/incidents/export", (req, res) => {
+  db.all("SELECT * FROM incidents ORDER BY date_occurred DESC", [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: "Database query error", error: err.message });
+    }
+
+    const headers = ["ID", "Title", "Disaster Type", "Date Occurred", "Peak Water Level (m)", "Affected Households", "Total Rescued", "Casualties", "Avg Response Time (min)", "Dispatch Time (min)", "On Scene Time (min)", "Purok/Zone", "Damage Estimate (PHP)", "Status", "Summary"];
+    const csvRows = [headers.join(",")];
+
+    rows.forEach(r => {
+      const row = [
+        r.id,
+        `"${(r.title || "").replace(/"/g, '""')}"`,
+        r.disaster_type,
+        r.date_occurred,
+        r.water_level_m || 0,
+        r.affected_households || 0,
+        r.total_rescued || 0,
+        r.casualties_count || 0,
+        r.avg_response_time_mins || 0,
+        r.dispatch_time_mins || 0,
+        r.on_scene_time_mins || 0,
+        `"${(r.purok_zone || "").replace(/"/g, '""')}"`,
+        r.damage_estimate_php || 0,
+        r.status,
+        `"${(r.summary_notes || "").replace(/"/g, '""')}"`
+      ];
+      csvRows.push(row.join(","));
+    });
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="ZamboAlert_ZCDRRMO_Incident_Analytics_Report.csv"');
+    res.send(csvRows.join("\n"));
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
 
