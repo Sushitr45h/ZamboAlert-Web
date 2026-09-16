@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import ManpowerAlertPage from "./ManpowerAlertPage";
 import {
   Radio,
   Wifi,
@@ -1517,7 +1518,7 @@ export default function DashboardPage() {
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [showCallRescuerModal, setShowCallRescuerModal] = useState(false);
   const [showAutoCallModal, setShowAutoCallModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("map"); // "map", "alerts", "residents", "units", "reports", "victims", "approvals"
+  const [activeTab, setActiveTab] = useState("map"); // "map", "alerts", "residents", "units", "reports", "victims", "approvals", "manpower"
 
   const [casualtyLogs, setCasualtyLogs] = useState([]);
   const [selectedCasualtyId, setSelectedCasualtyId] = useState(null);
@@ -1766,6 +1767,7 @@ export default function DashboardPage() {
             { id: "reports", label: "Reports & Analytics", icon: BarChart2 },
             { id: "victims", label: "Victims DB", icon: ClipboardList, count: casualtyLogs.length },
             { id: "approvals", label: "Approvals", icon: ShieldCheck, badge: pendingApprovals.length },
+            { id: "manpower", label: "Manpower Alert", icon: ShieldAlert },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -2405,6 +2407,9 @@ export default function DashboardPage() {
             )}
           </div>
         )}
+
+        {/* ── VIEW 8: MANPOWER ALERT ── */}
+        {activeTab === "manpower" && <ManpowerAlertPage />}
 
       </div>
 
