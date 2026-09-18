@@ -80,129 +80,7 @@ function StatCard({ label, value, sub, color = "slate", icon: Icon }) {
   );
 }
 
-// ── Modal: Simulate Scenario ─────────────────────────────────────────────────
 
-function SimulateModal({ onClose, onSimulated }) {
-  const [disasterType, setDisasterType] = useState("Flash Flood");
-  const [scenarioLevel, setScenarioLevel] = useState("Level 4 - Worst-Case Catastrophe");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
-
-  const disasterTypes = ["Flash Flood", "Super Typhoon", "Earthquake", "Storm Surge", "Landslide"];
-  const scenarioLevels = [
-    "Level 4 - Worst-Case Catastrophe",
-    "Level 3 - High Severity",
-    "Level 2 - Moderate Impact",
-  ];
-
-  const handleSimulate = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${API}/api/manpower/simulate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ disaster_type: disasterType, scenario_level: scenarioLevel, operator: "Admin Command" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Simulation failed");
-      setResult(data);
-      onSimulated?.();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div>
-            <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <Zap size={16} className="text-red-600" />
-              Worst-Case Scenario Simulator
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">Generate AI manpower deficit matrix across all 20 Zamboanga barangays</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
-            <X size={16} className="text-slate-500" />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">Disaster Type</label>
-            <select
-              value={disasterType}
-              onChange={(e) => setDisasterType(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-300"
-            >
-              {disasterTypes.map((d) => <option key={d}>{d}</option>)}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">Scenario Level</label>
-            <select
-              value={scenarioLevel}
-              onChange={(e) => setScenarioLevel(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-800 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-red-300"
-            >
-              {scenarioLevels.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">{error}</div>
-          )}
-
-          {result && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
-              <div className="text-xs font-bold text-emerald-800">✅ Simulation Complete</div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                  <div className="text-[10px] font-bold text-red-600 uppercase">Critical Red</div>
-                  <div className="text-xl font-black text-red-700 font-mono">{result.critical_red_count}</div>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-2">
-                  <div className="text-[10px] font-bold text-orange-600 uppercase">Severe Orange</div>
-                  <div className="text-xl font-black text-orange-700 font-mono">{result.severe_orange_count}</div>
-                </div>
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
-                  <div className="text-[10px] font-bold text-amber-600 uppercase">Moderate Yellow</div>
-                  <div className="text-xl font-black text-amber-700 font-mono">{result.moderate_yellow_count}</div>
-                </div>
-              </div>
-              <p className="text-[11px] text-emerald-700 font-medium">{result.message}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2 p-5 pt-0">
-          <button
-            onClick={handleSimulate}
-            disabled={loading}
-            className="flex-1 py-3 bg-red-700 hover:bg-red-800 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            {loading ? <RefreshCw size={14} className="animate-spin" /> : <Play size={14} />}
-            {loading ? "Simulating..." : "Run Simulation"}
-          </button>
-          {result && (
-            <button
-              onClick={onClose}
-              className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
-            >
-              Done
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Modal: Trigger Alert ─────────────────────────────────────────────────────
 
@@ -735,7 +613,7 @@ function EditBarangayModal({ barangay, onClose, onSaved }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function ManpowerAlertPage() {
+export default function PersonnelAlertPage() {
   const [subTab, setSubTab] = useState("alerts"); // 'alerts' | 'barangays' | 'transfers' | 'escalations'
 
   // Data
@@ -759,7 +637,6 @@ export default function ManpowerAlertPage() {
   const [expandedAlerts, setExpandedAlerts] = useState({});
 
   // Modals
-  const [showSimulate, setShowSimulate] = useState(false);
   const [triggerAlert, setTriggerAlert] = useState(null); // barangay_name
   const [showMutualAid, setShowMutualAid] = useState(false);
   const [mutualAidDefaultTo, setMutualAidDefaultTo] = useState("");
@@ -853,7 +730,7 @@ export default function ManpowerAlertPage() {
             </div>
             <div>
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
-                Manpower Alert System
+                Personnel Status
               </h2>
               <p className="text-[11px] text-slate-500 mt-0.5">
             
@@ -862,12 +739,6 @@ export default function ManpowerAlertPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSimulate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm"
-            >
-              <Play size={13} /> Run Simulation
-            </button>
             <button
               onClick={() => { setMutualAidDefaultTo(""); setShowMutualAid(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm"
@@ -988,7 +859,7 @@ export default function ManpowerAlertPage() {
                   {filteredAlerts.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="p-10 text-center text-slate-400 italic">
-                        {loadingAlerts ? "Loading manpower alerts..." : "No manpower alerts found. Run a simulation to generate the alert matrix."}
+                        {loadingAlerts ? "Loading personnel alerts..." : "No personnel alerts found."}
                       </td>
                     </tr>
                   ) : (
@@ -1353,12 +1224,6 @@ export default function ManpowerAlertPage() {
       </div>
 
       {/* ── Modals ── */}
-      {showSimulate && (
-        <SimulateModal
-          onClose={() => setShowSimulate(false)}
-          onSimulated={() => { fetchAlerts(); }}
-        />
-      )}
       {triggerAlert && (
         <TriggerAlertModal
           barangay={triggerAlert}

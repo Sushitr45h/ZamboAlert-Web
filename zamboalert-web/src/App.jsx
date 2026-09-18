@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
-import ManpowerAlertPage from "./pages/ManpowerAlertPage";
+import PersonnelAlertPage from "./pages/PersonnelAlertPage";
 
 function PrivateRoute({ children }) {
   const auth = localStorage.getItem("zamboalert_auth");
@@ -39,6 +39,22 @@ export default function App() {
           element={
             <PrivateRoute>
               <SettingsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/personnel-alert"
+          element={
+            <PrivateRoute>
+              <PersonnelAlertPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/manpower-alert"
+          element={
+            <PrivateRoute>
+              <PersonnelAlertPage />
             </PrivateRoute>
           }
         />

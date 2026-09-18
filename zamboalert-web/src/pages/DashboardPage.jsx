@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import ManpowerAlertPage from "./ManpowerAlertPage";
+import PersonnelPage from "./PersonnelAlertPage";
+import SettingsPage from "./SettingsPage";
 import {
   Radio,
   Wifi,
@@ -14,6 +15,8 @@ import {
   Send,
   X,
   ChevronRight,
+  ChevronLeft,
+  Menu,
   Activity,
   ShieldCheck,
   ShieldAlert,
@@ -1518,7 +1521,10 @@ export default function DashboardPage() {
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [showCallRescuerModal, setShowCallRescuerModal] = useState(false);
   const [showAutoCallModal, setShowAutoCallModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("map"); // "map", "alerts", "residents", "units", "reports", "victims", "approvals", "manpower"
+  const [activeTab, setActiveTab] = useState("map"); // "map", "alerts", "residents", "units", "reports", "victims", "approvals", "manpower", "settings"
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showMapSosQueue, setShowMapSosQueue] = useState(true);
+  const [showMapQuickOps, setShowMapQuickOps] = useState(true);
 
   const [casualtyLogs, setCasualtyLogs] = useState([]);
   const [selectedCasualtyId, setSelectedCasualtyId] = useState(null);
@@ -1707,6 +1713,32 @@ export default function DashboardPage() {
 
   const unassignedAlerts = alerts.filter((a) => a.status === "unassigned");
   const pendingApprovals = rescuers.filter((r) => !r.isVerified);
+  const navGroups = [
+    {
+      title: "TACTICAL OPERATIONS",
+      items: [
+        { id: "map", label: "Tactical Map", icon: Compass },
+        { id: "alerts", label: "SOS Stream", icon: AlertTriangle, badge: unassignedAlerts.length },
+        { id: "victims", label: "Victims DB", icon: ClipboardList, count: casualtyLogs.length },
+      ],
+    },
+    {
+      title: "COMMUNITY & UNITS",
+      items: [
+        { id: "residents", label: "Residents & SMS", icon: Home },
+        { id: "units", label: "Units & Tanods", icon: Users },
+        { id: "personnel", label: "Personnel Alert", icon: ShieldAlert },
+      ],
+    },
+    {
+      title: "SYSTEM & INTELLIGENCE",
+      items: [
+        { id: "reports", label: "Reports & Analytics", icon: BarChart2 },
+        { id: "approvals", label: "Approvals", icon: ShieldCheck, badge: pendingApprovals.length },
+        { id: "settings", label: "Settings", icon: Settings },
+      ],
+    },
+  ];
 
   if (!isAuthenticated) {
     return (
@@ -1718,117 +1750,224 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-screen w-screen bg-slate-100 flex flex-col overflow-hidden text-slate-800 antialiased font-sans">
+    <div className="h-screen w-screen bg-slate-100 flex overflow-hidden text-slate-800 antialiased font-sans">
       
-      {/* ── Top Emergency Flash Banner (When Active Unassigned SOS) ── */}
-      {unassignedAlerts.length > 0 && (
-        <div className={`px-6 py-2 transition-colors duration-300 flex items-center justify-between text-white ${
-          flashCount % 2 === 0 ? "bg-red-700" : "bg-red-600"
-        }`}>
-          <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wider">
-            <AlertTriangle size={15} className="animate-pulse" />
-            <span>⚠️ CRITICAL DISTRESS ALERT: {unassignedAlerts.length} UNASSIGNED SOS REQUEST(S) IN PROGRESS</span>
+      {/* ── LEFT SIDEBAR NAVIGATION ── */}
+      <aside
+        className={`bg-slate-950 text-slate-300 flex flex-col flex-shrink-0 transition-all duration-300 z-50 border-r border-slate-800/80 ${
+          isSidebarCollapsed ? "w-20" : "w-64"
+        }`}
+      >
+        {/* Sidebar Brand Header */}
+        <div className="h-16 px-4 border-b border-slate-800/80 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="relative flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center shadow-lg shadow-red-950 text-white border border-red-500/30">
+                <Radio size={20} />
+              </div>
+              
+            </div>
+            
+            {!isSidebarCollapsed && (
+              <div className="transition-opacity duration-200">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-extrabold text-white tracking-tight leading-none font-mono">ZamboAlert</span>
+                </div>
+                <span className="text-[10px] text-red-400 font-mono font-bold tracking-wider uppercase block mt-1">
+                  Barangay Tumaga
+                </span>
+              </div>
+            )}
           </div>
+
           <button
-            onClick={() => setDispatchTarget(unassignedAlerts[0])}
-            className="px-3 py-1 bg-white text-red-700 font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm hover:bg-slate-100 transition-colors cursor-pointer"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            Dispatch Unit Now
+            {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
-      )}
 
-      {/* ── Main Command Header ── */}
-      <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0 z-40">
-        
-        {/* Brand & Sector */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center shadow-md shadow-red-100 text-white">
-            <Radio size={20} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold text-slate-900 tracking-tight leading-none">ZamboAlert</span>
-              <span className="bg-red-50 text-red-700 border border-red-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase">
-                Barangay Tumaga
-              </span>
+        {/* Navigation Menu */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
+          {navGroups.map((group, idx) => (
+            <div key={idx} className="space-y-1.5">
+              {!isSidebarCollapsed && (
+                <div className="px-3 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                  {group.title}
+                </div>
+              )}
+              
+              <div className="space-y-1">
+                {group.items.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      title={isSidebarCollapsed ? tab.label : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer relative group ${
+                        isActive
+                          ? "bg-red-600 text-white shadow-md shadow-red-950 font-extrabold"
+                          : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"
+                      } ${isSidebarCollapsed ? "justify-center px-0" : ""}`}
+                    >
+                      <Icon size={17} className={`flex-shrink-0 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"}`} />
+                      
+                      {!isSidebarCollapsed && (
+                        <span className="truncate flex-1 text-left">{tab.label}</span>
+                      )}
+
+                      {/* Badges / Counts */}
+                      {tab.badge > 0 && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+                          isSidebarCollapsed ? "absolute -top-1 -right-1 ring-2 ring-slate-950" : ""
+                        } ${
+                          isActive
+                            ? "bg-white text-red-700"
+                            : "bg-red-600 text-white animate-pulse"
+                        }`}>
+                          {tab.badge}
+                        </span>
+                      )}
+
+                      {tab.count !== undefined && tab.count > 0 && !tab.badge && !isSidebarCollapsed && (
+                        <span className={`text-[10px] font-mono ${isActive ? "text-red-100" : "text-slate-500"}`}>
+                          ({tab.count})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Disaster Risk & Rescue Operations Portal</p>
-          </div>
+          ))}
         </div>
 
-        {/* Center Primary Navigation Tabs */}
-        <nav className="hidden lg:flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200">
-          {[
-            { id: "map", label: "Tactical Map", icon: Compass },
-            { id: "alerts", label: "SOS Stream", icon: AlertTriangle, badge: unassignedAlerts.length },
-            { id: "residents", label: "Residents & SMS", icon: Home },
-            { id: "units", label: "Units & Tanods", icon: Users },
-            { id: "reports", label: "Reports & Analytics", icon: BarChart2 },
-            { id: "victims", label: "Victims DB", icon: ClipboardList, count: casualtyLogs.length },
-            { id: "approvals", label: "Approvals", icon: ShieldCheck, badge: pendingApprovals.length },
-            { id: "manpower", label: "Manpower Alert", icon: ShieldAlert },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        {/* Sidebar Footer User Card */}
+        <div className="p-3 border-t border-slate-800/80 bg-slate-950/60">
+          {!isSidebarCollapsed ? (
+            <div className="flex items-center justify-between gap-2 p-2 bg-slate-900/80 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-red-900/60 border border-red-700/50 flex items-center justify-center text-red-400 font-bold text-xs flex-shrink-0">
+                  {sessionUser ? sessionUser.charAt(0) : "A"}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-100 truncate">{sessionUser}</div>
+                  <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    <span>Command Active</span>
+                  </div>
+                </div>
+              </div>
+
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer relative ${
-                  isActive
-                    ? "bg-white text-red-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
-                }`}
+                onClick={handleLogout}
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                title="Logout"
               >
-                <Icon size={14} className={isActive ? "text-red-600" : "text-slate-500"} />
-                <span>{tab.label}</span>
-                {tab.badge > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[9px] font-mono font-black animate-pulse">
-                    {tab.badge}
-                  </span>
-                )}
-                {tab.count !== undefined && tab.count > 0 && !tab.badge && (
-                  <span className="text-[10px] font-mono text-slate-400">({tab.count})</span>
-                )}
+                <LogOut size={16} />
               </button>
-            );
-          })}
-        </nav>
+            </div>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full py-2.5 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-slate-900 rounded-xl transition-colors cursor-pointer"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
+        </div>
+      </aside>
 
-        {/* Right Session & Tools */}
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-mono font-bold text-slate-800">{fmtTime(now)}</div>
-            <div className="text-[10px] text-slate-400">
-              {now.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+      {/* ── RIGHT MAIN CONTAINER ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-100">
+        
+        {/* ── TOP STATUS HEADER ── */}
+        <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0 z-40 shadow-xs">
+          
+          {/* Active Tab Title & Context */}
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                {activeTab === "map" && <Compass size={18} className="text-red-600" />}
+                {activeTab === "alerts" && <AlertTriangle size={18} className="text-red-600" />}
+                {activeTab === "residents" && <Home size={18} className="text-red-600" />}
+                {activeTab === "units" && <Users size={18} className="text-red-600" />}
+                {activeTab === "reports" && <BarChart2 size={18} className="text-red-600" />}
+                {activeTab === "victims" && <ClipboardList size={18} className="text-red-600" />}
+                {activeTab === "approvals" && <ShieldCheck size={18} className="text-red-600" />}
+                {(activeTab === "personnel" || activeTab === "manpower") && <ShieldAlert size={18} className="text-red-600" />}
+                {activeTab === "settings" && <Settings size={18} className="text-red-600" />}
+                
+                <span>
+                  {activeTab === "map" && "Tactical Command Map"}
+                  {activeTab === "alerts" && "SOS Emergency Stream"}
+                  {activeTab === "residents" && "Resident Registry & SMS Broadcast"}
+                  {activeTab === "units" && "Units & Barangay Tanods"}
+                  {activeTab === "reports" && "ZCDRRMO Incident Reports & Analytics"}
+                  {activeTab === "victims" && "Victims Database & Casualty Logs"}
+                  {activeTab === "approvals" && "Rescuer Verification Approvals"}
+                  {(activeTab === "personnel" || activeTab === "manpower") && "Personnel Alert & Manpower Defense"}
+                  {activeTab === "settings" && "System Settings & Configuration"}
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-500 font-medium">Barangay Tumaga Operations Portal · Zamboanga City</p>
+            </div>
+
+            {/* Live Operational Badge */}
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200/80 rounded-full text-[11px] font-mono font-bold text-emerald-800">
+        
+              <span>COMMAND ONLINE</span>
             </div>
           </div>
 
-          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-3">
+            {/* Emergency Action Buttons */}
+            <div className="hidden xl:flex items-center gap-2">
+              <button
+                onClick={() => setShowBroadcast(true)}
+                className="px-3 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Volume2 size={13} />
+                <span>LoRa Broadcast</span>
+              </button>
 
-          <button
-            onClick={() => navigate("/settings")}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
-            title="Open System Settings"
-          >
-            <Settings size={14} />
-            <span className="hidden md:inline">Settings</span>
-          </button>
+              <button
+                onClick={() => setShowAutoCallModal(true)}
+                className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <PhoneForwarded size={13} />
+                <span>Auto-Call ZCDRRMO</span>
+              </button>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
-            title="Logout Session"
-          >
-            <LogOut size={14} />
-            <span className="hidden md:inline">Logout</span>
-          </button>
-        </div>
-      </header>
+              <button
+                onClick={() => setShowCallRescuerModal(true)}
+                className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <PhoneCall size={13} />
+                <span>Call & Dispatch</span>
+              </button>
+            </div>
 
-      {/* ── Main Work Area ── */}
-      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+            <div className="h-6 w-px bg-slate-200 hidden xl:block" />
+
+            {/* Live Clock */}
+            <div className="text-right hidden sm:block">
+              <div className="text-xs font-mono font-bold text-slate-900">{fmtTime(now)}</div>
+              <div className="text-[10px] text-slate-400 font-medium">
+                {now.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Main Workspace Area ── */}
+        <div className="flex-1 flex overflow-hidden p-4 gap-4">
         
         {/* ── VIEW 1: TACTICAL MAP (3-Column Layout) ── */}
         {activeTab === "map" && (
@@ -2408,10 +2547,18 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── VIEW 8: MANPOWER ALERT ── */}
-        {activeTab === "manpower" && <ManpowerAlertPage />}
+        {/* ── VIEW 8: MANPOWER / PERSONNEL ALERT ── */}
+        {(activeTab === "personnel" || activeTab === "manpower" || activeTab === "Personnel") && <PersonnelPage />}
+
+        {/* ── VIEW 9: SYSTEM SETTINGS ── */}
+        {activeTab === "settings" && (
+          <div className="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-y-auto custom-scrollbar flex flex-col">
+            <SettingsPage />
+          </div>
+        )}
 
       </div>
+    </div>
 
       {/* ── Modals ── */}
       {showBroadcast && <BroadcastModal onClose={() => setShowBroadcast(false)} />}
