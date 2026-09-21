@@ -13,7 +13,8 @@ dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 5000;
+const DEFAULT_PORT = Number(process.env.PORT || 5000);
+const FALLBACK_PORTS = [DEFAULT_PORT, 5001, 5002, 5003, 5010];
 const JWT_SECRET = process.env.JWT_SECRET || "zamboalert_secret_jwt_key_12345";
 
 // Initialize Firebase Admin (optional, falls back gracefully to SQLite database)
@@ -1618,9 +1619,31 @@ app.get("/api/manpower/export", (req, res) => {
   );
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+function startServer(portIndex = 0) {
+  const port = FALLBACK_PORTS[portIndex];
+
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on port ${port}`);
+  });
+
+  server.on("error", (error) => {
+    if (error.code === "EADDRINUSE") {
+      const nextIndex = portIndex + 1;
+      if (FALLBACK_PORTS[nextIndex]) {
+        console.warn(`Port ${port} is already in use. Retrying on port ${FALLBACK_PORTS[nextIndex]}...`);
+        startServer(nextIndex);
+        return;
+      }
+
+      console.error("No available ports left. Please free a port and try again.");
+      process.exit(1);
+    }
+
+    throw error;
+  });
+}
+
+startServer();
 
 
 

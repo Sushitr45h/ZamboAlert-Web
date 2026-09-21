@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
   Lock,
   Mail,
@@ -14,13 +13,15 @@ import {
   EyeOff,
 } from "lucide-react";
 
-/* Credentials login only */
+import LoginBrandPanel from "./LoginBrandPanel";
+import LoginFormCard from "./LoginFormCard";
+import ViewHeader from "./ViewHeader";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  /* ── credential-login states ── */
-  const [view, setView] = useState("login"); // login | register | verify | mfa | locked
+  const [view, setView] = useState("login");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -45,49 +46,105 @@ export default function LoginPage() {
     color: "bg-slate-200",
     checks: { length: false, upper: false, lower: false, number: false, special: false },
   });
-  const [notification, setNotification] = useState({ msg: "", type: "" }); // { msg: "...", type: "error" | "success" | "info" }
+  const [notification, setNotification] = useState({ msg: "", type: "" });
   const timerRef = useRef(null);
   const notificationTimeoutRef = useRef(null);
 
-  /* QR login disabled */
+  const API_PORTS = [Number(import.meta.env.VITE_API_PORT || 5000), 5001, 5002, 5003, 5010];
 
+  const apiRequest = async (endpoint, options = {}) => {
+    let lastError;
 
-  /* ─── credential-login side-effects ─────────────── */
+    for (const port of API_PORTS) {
+      try {
+        const response = await fetch(`http://localhost:${port}${endpoint}`, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          },
+        });
+
+        if (response.status !== 404) {
+          return response;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+
+    return fetch(`http://localhost:${API_PORTS[0]}${endpoint}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+  };
+
+  const inputClassName =
+    "w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10";
+  const primaryButtonClassName =
+    "w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer";
+
   useEffect(() => {
     const generateMfa = () => setMfaCode(Math.floor(100000 + Math.random() * 900000).toString());
     generateMfa();
-    const i = setInterval(generateMfa, 30000);
-    return () => clearInterval(i);
+    const interval = setInterval(generateMfa, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     const checks = {
-      length:  password.length >= 8,
-      upper:   /[A-Z]/.test(password),
-      lower:   /[a-z]/.test(password),
-      number:  /[0-9]/.test(password),
+      length: password.length >= 8,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
       special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
     };
+
     const count = Object.values(checks).filter(Boolean).length;
-    let label = "None", color = "bg-slate-200";
+    let label = "None";
+    let color = "bg-slate-200";
+
     if (password.length > 0) {
-      if (count <= 2)            { label = "Weak (Insecure)";  color = "bg-red-700";   }
-      else if (count <= 4)       { label = "Medium (Fair)";    color = "bg-amber-500"; }
-      else                       { label = "Strong (Secure)";  color = "bg-green-500"; }
+      if (count <= 2) {
+        label = "Weak (Insecure)";
+        color = "bg-red-700";
+      } else if (count <= 4) {
+        label = "Medium (Fair)";
+        color = "bg-amber-500";
+      } else {
+        label = "Strong (Secure)";
+        color = "bg-green-500";
+      }
     }
+
     setStrength({ score: count, label, color, checks });
   }, [password]);
 
   useEffect(() => {
     if (lockoutTime > 0) {
       timerRef.current = setInterval(() => {
-        setLockoutTime((t) => {
-          if (t <= 1) { clearInterval(timerRef.current); setView("login"); setFailedAttempts(0); return 0; }
-          return t - 1;
+        setLockoutTime((time) => {
+          if (time <= 1) {
+            clearInterval(timerRef.current);
+            setView("login");
+            setFailedAttempts(0);
+            return 0;
+          }
+          return time - 1;
         });
       }, 1000);
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [lockoutTime]);
 
   const showNotificationMsg = (msg, type = "error") => {
@@ -104,27 +161,33 @@ export default function LoginPage() {
     };
   }, []);
 
-  /* Resend countdown — starts when MFA view opens or timer resets to 60 */
   useEffect(() => {
     if (view !== "mfa") return;
     if (resendTimer <= 0) return;
+
     resendRef.current = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) { clearInterval(resendRef.current); return 0; }
-        return t - 1;
+      setResendTimer((time) => {
+        if (time <= 1) {
+          clearInterval(resendRef.current);
+          return 0;
+        }
+        return time - 1;
       });
     }, 1000);
+
     return () => clearInterval(resendRef.current);
-  }, [view, resendTimer === 60]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view, resendTimer === 60]);
 
-  const BACKEND_URL = "http://localhost:5000";
-
-  /* ─── handlers ──────────────────────────────────── */
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (failedAttempts >= 2) { setView("locked"); setLockoutTime(30); return; }
+    if (failedAttempts >= 2) {
+      setView("locked");
+      setLockoutTime(30);
+      return;
+    }
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      const response = await apiRequest("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -136,18 +199,16 @@ export default function LoginPage() {
         setResendTimer(60);
         setEmailOpened(false);
         showNotificationMsg("2FA Code sent to your official email.", "success");
+      } else if (data.unverified) {
+        setEmail(data.email);
+        setView("verify");
+        showNotificationMsg(data.message, "warning");
       } else {
-        if (data.unverified) {
-          setEmail(data.email);
-          setView("verify");
-          showNotificationMsg(data.message, "warning");
-        } else {
-          const a = failedAttempts + 1;
-          setFailedAttempts(a);
-          showNotificationMsg(`${data.message || "Invalid username or password!"} Attempt ${a}/3.`, "error");
-        }
+        const nextAttempt = failedAttempts + 1;
+        setFailedAttempts(nextAttempt);
+        showNotificationMsg(`${data.message || "Invalid username or password!"} Attempt ${nextAttempt}/3.`, "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
   };
@@ -162,8 +223,9 @@ export default function LoginPage() {
       showNotificationMsg("Password is too weak. Please ensure it is at least medium strength.", "error");
       return;
     }
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+      const response = await apiRequest("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, firstName, lastName, phoneNumber, password }),
@@ -178,7 +240,7 @@ export default function LoginPage() {
       } else {
         showNotificationMsg(data.message || "Registration failed", "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
   };
@@ -186,7 +248,7 @@ export default function LoginPage() {
   const handleVerifyEmail = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/verify-email`, {
+      const response = await apiRequest("/api/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code: verificationCode }),
@@ -205,7 +267,7 @@ export default function LoginPage() {
       } else {
         showNotificationMsg(data.message || "Invalid verification code!", "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server.", "error");
     }
   };
@@ -213,7 +275,7 @@ export default function LoginPage() {
   const handleMfa = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/verify-2fa`, {
+      const response = await apiRequest("/api/auth/verify-2fa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, code: otp }),
@@ -221,16 +283,19 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("zamboalert_auth", JSON.stringify({
-          token: data.token,
-          user: data.user,
-          expiry: data.expiry,
-        }));
+        localStorage.setItem(
+          "zamboalert_auth",
+          JSON.stringify({
+            token: data.token,
+            user: data.user,
+            expiry: data.expiry,
+          })
+        );
         navigate("/dashboard");
       } else {
         showNotificationMsg(data.message || "Invalid MFA Code!", "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server.", "error");
     }
   };
@@ -238,7 +303,7 @@ export default function LoginPage() {
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+      const response = await apiRequest("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -254,7 +319,7 @@ export default function LoginPage() {
       } else {
         showNotificationMsg(data.message || "Failed to request password reset", "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
   };
@@ -269,8 +334,9 @@ export default function LoginPage() {
       showNotificationMsg("Password is too weak. Please ensure it is at least medium strength.", "error");
       return;
     }
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/reset-password`, {
+      const response = await apiRequest("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code: verificationCode, newPassword: password }),
@@ -288,157 +354,107 @@ export default function LoginPage() {
       } else {
         showNotificationMsg(data.message || "Failed to reset password", "error");
       }
-    } catch (err) {
+    } catch (error) {
       showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
     }
   };
 
-  /* QR panel removed */
+  const MobileBrandHeader = () => (
+    <div className="flex flex-col items-center justify-center mb-8 lg:hidden">
+      <img src="/zamboalert.png" alt="ZamboAlert Logo" className="w-12 h-12 object-contain mb-2" />
+      <span className="font-extrabold text-xl text-slate-900 tracking-tight">ZamboAlert</span>
+      <p className="text-[9px] font-bold text-red-700/70 uppercase tracking-[0.2em] mt-1.5">
+        Disaster Response Portal
+      </p>
+    </div>
+  );
 
+  const NotificationBanner = () =>
+    notification.msg ? (
+      <div
+        className={`mb-5 p-3 rounded-xl border text-xs flex items-center justify-between transition-all duration-300 ${
+          notification.type === "success"
+            ? "bg-green-50 border-green-200 text-green-800"
+            : notification.type === "info"
+              ? "bg-blue-50 border-blue-200 text-blue-800"
+              : "bg-rose-50 border-rose-200 text-red-800"
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          {notification.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+          ) : (
+            <ShieldAlert className="h-4 w-4 text-red-700 flex-shrink-0" />
+          )}
+          <span>{notification.msg}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setNotification({ msg: "", type: "" })}
+          className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-1 text-sm font-semibold leading-none ml-2"
+        >
+          ×
+        </button>
+      </div>
+    ) : null;
 
-  /* ════════════════════════════════════════════════════
-     RENDER — Google-style split layout
-     Left = ZamboAlert branding / Right = Forms
-  ════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-slate-900 flex font-sans relative overflow-hidden">
+      <LoginBrandPanel />
 
-      {/* ══════════════════════════════════════════════
-          LEFT PANEL — Branding & Info (hidden on mobile)
-      ══════════════════════════════════════════════ */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative flex-col items-center justify-center bg-gradient-to-br from-[#991b1b] via-[#7f1d1d] to-[#450a0a] overflow-hidden">
-        {/* Decorative ambient glows */}
-        <div className="absolute top-[-15%] left-[-15%] w-[70%] h-[70%] rounded-full bg-red-500/15 blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-amber-600/10 blur-[120px] pointer-events-none" />
-        <div className="absolute top-[40%] right-[10%] w-[40%] h-[40%] rounded-full bg-red-800/20 blur-[100px] pointer-events-none" />
-
-        {/* Subtle grid pattern overlay */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.04]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '40px 40px',
-          }}
-        />
-
-        {/* Content */}
-        <div className="relative z-10 px-12 xl:px-16 max-w-lg text-center">
-          {/* Logo */}
-          <div className="mb-8 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center mb-5 shadow-lg shadow-black/20">
-              <img
-                src="/zamboalert.png"
-                alt="ZamboAlert Logo"
-                className="w-14 h-14 object-contain"
-              />
-            </div>
-            <h1 className="text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-tight">
-              ZamboAlert
-            </h1>
-            <p className="text-[11px] font-bold text-red-200/70 uppercase tracking-[0.25em] mt-3">
-              Disaster Response Portal
-            </p>
-          </div>
-
-          {/* Tagline */}
-          <p className="text-base xl:text-lg text-red-100/80 leading-relaxed mb-10 font-light">
-            Empowering Zamboanga's barangays with real-time disaster monitoring, rapid response coordination, and community resilience tools.
-          </p>
-
-          {/* Bottom line */}
-          <div className="mt-12 pt-6 border-t border-white/[0.08]">
-            <p className="text-[11px] text-red-200/40 tracking-wide">
-              City Disaster Risk Reduction &amp; Management Office
-            </p>
-            <p className="text-[10px] text-red-200/25 mt-1">
-              Zamboanga City, Philippines
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════
-          RIGHT PANEL — Login Forms
-      ══════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-5 py-8 sm:px-8 relative">
-        {/* Subtle background pattern for right panel */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.015]"
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.015]"
           style={{
             backgroundImage: `radial-gradient(circle at 1px 1px, #991b1b 1px, transparent 0)`,
-            backgroundSize: '32px 32px',
+            backgroundSize: "32px 32px",
           }}
         />
 
-        {/* Form Container */}
         <div className="w-full max-w-[420px] relative z-10">
+          <MobileBrandHeader />
 
-          {/* Mobile-only brand header (hidden on desktop where left panel shows) */}
-          <div className="flex flex-col items-center justify-center mb-8 lg:hidden">
-            <img
-              src="/zamboalert.png"
-              alt="ZamboAlert Logo"
-              className="w-12 h-12 object-contain mb-2"
+          <LoginFormCard>
+            <ViewHeader
+              title={
+                view === "login"
+                  ? "Sign in"
+                  : view === "register"
+                    ? "Create account"
+                    : view === "verify"
+                      ? "Verify email"
+                      : view === "mfa"
+                        ? "Two-factor auth"
+                        : view === "locked"
+                          ? "Account locked"
+                          : view === "forgot_password"
+                            ? "Forgot password"
+                            : "Reset password"
+              }
+              subtitle={
+                view === "login"
+                  ? "Access the ZamboAlert disaster portal"
+                  : view === "register"
+                    ? "Register as an authorized official"
+                    : view === "verify"
+                      ? "Confirm your official email address"
+                      : view === "mfa"
+                        ? "Enter your verification code"
+                        : view === "locked"
+                          ? "Too many failed attempts"
+                          : view === "forgot_password"
+                            ? "We'll send you a reset code"
+                            : "Choose a new password"
+              }
             />
-            <span className="font-extrabold text-xl text-slate-900 tracking-tight">ZamboAlert</span>
-            <p className="text-[9px] font-bold text-red-700/70 uppercase tracking-[0.2em] mt-1.5">Disaster Response Portal</p>
-          </div>
 
-          {/* Form card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-6 sm:p-8">
+            <NotificationBanner />
 
-            {/* View title header (desktop) */}
-            <div className="hidden lg:block mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                {view === "login" && "Sign in"}
-                {view === "register" && "Create account"}
-                {view === "verify" && "Verify email"}
-                {view === "mfa" && "Two-factor auth"}
-                {view === "locked" && "Account locked"}
-                {view === "forgot_password" && "Forgot password"}
-                {view === "reset_password" && "Reset password"}
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                {view === "login" && "Access the ZamboAlert disaster portal"}
-                {view === "register" && "Register as an authorized official"}
-                {view === "verify" && "Confirm your official email address"}
-                {view === "mfa" && "Enter your verification code"}
-                {view === "locked" && "Too many failed attempts"}
-                {view === "forgot_password" && "We'll send you a reset code"}
-                {view === "reset_password" && "Choose a new password"}
-              </p>
-            </div>
-
-            {/* Toast Notification Message Banner Overlay */}
-            {notification.msg && (
-              <div className={`mb-5 p-3 rounded-xl border text-xs flex items-center justify-between transition-all duration-300 ${
-                notification.type === "success"
-                  ? "bg-green-50 border-green-200 text-green-800"
-                  : notification.type === "info"
-                  ? "bg-blue-50 border-blue-200 text-blue-800"
-                  : "bg-rose-50 border-rose-200 text-red-800"
-              }`}>
-                <div className="flex items-center gap-2">
-                  {notification.type === "success" ? <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" /> : <ShieldAlert className="h-4 w-4 text-red-700 flex-shrink-0" />}
-                  <span>{notification.msg}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNotification({ msg: "", type: "" })}
-                  className="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-1 text-sm font-semibold leading-none ml-2"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {/* LOGIN */}
             {view === "login" && (
               <div>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Email Address
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
@@ -447,15 +463,13 @@ export default function LoginPage() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder="official@barangay.gov.ph"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Password
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
@@ -464,11 +478,11 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10 pr-10`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowLoginPassword((v) => !v)}
+                        onClick={() => setShowLoginPassword((value) => !value)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
                         aria-label={showLoginPassword ? "Hide password" : "Show password"}
                       >
@@ -478,7 +492,10 @@ export default function LoginPage() {
                     <div className="flex justify-end mt-1.5">
                       <button
                         type="button"
-                        onClick={() => { setView("forgot_password"); setEmail(""); }}
+                        onClick={() => {
+                          setView("forgot_password");
+                          setEmail("");
+                        }}
                         className="text-xs text-red-600 hover:text-red-700 hover:underline bg-transparent border-0 cursor-pointer p-0 font-medium"
                       >
                         Forgot Password?
@@ -486,10 +503,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer"
-                  >
+                  <button type="submit" className={primaryButtonClassName}>
                     Sign In
                   </button>
                 </form>
@@ -510,7 +524,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* REGISTER */}
             {view === "register" && (
               <div>
                 <form onSubmit={handleRegister} className="space-y-3.5">
@@ -519,18 +532,28 @@ export default function LoginPage() {
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">First Name</label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                        <input
+                          type="text"
+                          required
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
                           placeholder="Juan"
-                          className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10" />
+                          className={`${inputClassName} pl-10`}
+                        />
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1.5">Last Name</label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)}
+                        <input
+                          type="text"
+                          required
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
                           placeholder="Dela Cruz"
-                          className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10" />
+                          className={`${inputClassName} pl-10`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -539,9 +562,13 @@ export default function LoginPage() {
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Phone Number</label>
                     <div className="relative">
                       <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="Enter your number"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10" />
+                        className={`${inputClassName} pl-10`}
+                      />
                     </div>
                   </div>
 
@@ -549,9 +576,14 @@ export default function LoginPage() {
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">Official Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         placeholder="official@barangay.gov.ph"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10" />
+                        className={`${inputClassName} pl-10`}
+                      />
                     </div>
                   </div>
 
@@ -565,53 +597,17 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10 pr-10`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword((v) => !v)}
+                        onClick={() => setShowPassword((value) => !value)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-
-                    {/* Password Strength Indicator */}
-                    {password.length > 0 && (
-                      <div className="mt-2 space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-left">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-500 font-medium">Strength:</span>
-                          <span className={`font-semibold ${
-                            strength.score <= 2 ? "text-red-700" : strength.score <= 4 ? "text-amber-600" : "text-green-600"
-                          }`}>{strength.label}</span>
-                        </div>
-                        <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden flex gap-0.5">
-                          <div className={`h-full ${strength.color} rounded-full transition-all duration-300`} style={{ width: `${(strength.score / 5) * 100}%` }}></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-500">
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.length ? "text-green-500" : "text-slate-300"}`} />
-                            <span>8+ Characters</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.upper ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Uppercase letter</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.lower ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Lowercase letter</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.number ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Number</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.special ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Special char</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <PasswordStrengthMeter strength={strength} password={password} />
                   </div>
 
                   <div>
@@ -624,11 +620,11 @@ export default function LoginPage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10 pr-10`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        onClick={() => setShowConfirmPassword((value) => !value)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -636,26 +632,27 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <button type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer">
+                  <button type="submit" className={primaryButtonClassName}>
                     Create Account
                   </button>
                 </form>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 text-center text-sm text-slate-500">
                   Already registered?{" "}
-                  <button onClick={() => {
-                    setView("login");
-                    setPassword("");
-                    setConfirmPassword("");
-                  }} className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
+                  <button
+                    onClick={() => {
+                      setView("login");
+                      setPassword("");
+                      setConfirmPassword("");
+                    }}
+                    className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
+                  >
                     Sign In
                   </button>
                 </div>
               </div>
             )}
 
-            {/* VERIFY */}
             {view === "verify" && (
               <div>
                 <div className="flex items-center gap-2.5 mb-4">
@@ -671,14 +668,18 @@ export default function LoginPage() {
                 <form onSubmit={handleVerifyEmail} className="space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1.5 text-center">6-Digit Verification Code</label>
-                    <input type="text" maxLength={6} required value={verificationCode}
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ""))}
                       placeholder="123456"
-                      className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-3 text-center font-mono tracking-widest text-xl text-slate-900 placeholder:text-slate-300 outline-none transition-all focus:ring-2 focus:ring-red-600/10" />
+                      className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-3 text-center font-mono tracking-widest text-xl text-slate-900 placeholder:text-slate-300 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                    />
                   </div>
 
-                  <button type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer">
+                  <button type="submit" className={primaryButtonClassName}>
                     Verify Code
                   </button>
                 </form>
@@ -692,7 +693,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* MFA */}
             {view === "mfa" && (
               <div>
                 <div className="flex items-center gap-2.5 mb-4">
@@ -705,21 +705,17 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Code sent info + resend timer */}
                 <div className="mb-5 space-y-2">
                   <div className="flex items-start gap-2 text-[11px] text-slate-600 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2.5">
                     <Mail className="h-3.5 w-3.5 text-red-700 flex-shrink-0 mt-0.5" />
                     <span>
                       A 6-digit verification code has been sent to your Gmail at{" "}
                       <span className="font-mono font-semibold text-slate-800">
-                        {username
-                          ? `${username.slice(0, 2)}${"..".repeat(2)}@gmail.com`
-                          : "br**@gmail.com"}
+                        {username ? `${username.slice(0, 2)}${"..".repeat(2)}@gmail.com` : "br**@gmail.com"}
                       </span>. Check your Gmail inbox to get the code.
                     </span>
                   </div>
 
-                  {/* Resend row */}
                   <div className="flex items-center justify-between px-1">
                     {resendTimer > 0 ? (
                       <p className="text-[11px] text-slate-400">
@@ -734,10 +730,13 @@ export default function LoginPage() {
                         type="button"
                         onClick={async () => {
                           try {
-                            const response = await fetch(`${BACKEND_URL}/api/auth/resend-code`, {
+                            const response = await apiRequest("/api/auth/resend-code", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ email: email || (username.includes("@") ? username : `${username}@gmail.com`), type: "mfa" }),
+                              body: JSON.stringify({
+                                email: email || (username.includes("@") ? username : `${username}@gmail.com`),
+                                type: "mfa",
+                              }),
                             });
                             const data = await response.json();
                             if (response.ok) {
@@ -747,7 +746,7 @@ export default function LoginPage() {
                             } else {
                               showNotificationMsg(data.message, "error");
                             }
-                          } catch (err) {
+                          } catch (error) {
                             showNotificationMsg("Failed to resend MFA code.", "error");
                           }
                         }}
@@ -773,17 +772,13 @@ export default function LoginPage() {
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer"
-                  >
+                  <button type="submit" className={primaryButtonClassName}>
                     Authorize Session
                   </button>
                 </form>
               </div>
             )}
 
-            {/* LOCKED */}
             {view === "locked" && (
               <div className="text-center py-4">
                 <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
@@ -808,7 +803,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* FORGOT PASSWORD */}
             {view === "forgot_password" && (
               <div>
                 <div className="flex items-center gap-2.5 mb-4">
@@ -823,9 +817,7 @@ export default function LoginPage() {
 
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Official Email
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Official Email</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
@@ -834,33 +826,25 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="official@barangay.gov.ph"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10`}
                       />
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer"
-                  >
+                  <button type="submit" className={primaryButtonClassName}>
                     Send Reset Code
                   </button>
                 </form>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 text-center text-sm text-slate-500">
                   Remember your password?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setView("login")}
-                    className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
-                  >
+                  <button type="button" onClick={() => setView("login")} className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
                     Back to Sign In
                   </button>
                 </div>
               </div>
             )}
 
-            {/* RESET PASSWORD */}
             {view === "reset_password" && (
               <div>
                 <div className="flex items-center gap-2.5 mb-4">
@@ -875,9 +859,7 @@ export default function LoginPage() {
 
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5 text-center">
-                      6-Digit Verification Code
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5 text-center">6-Digit Verification Code</label>
                     <input
                       type="text"
                       maxLength={6}
@@ -890,9 +872,7 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      New Password
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">New Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
@@ -901,59 +881,21 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10 pr-10`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword((v) => !v)}
+                        onClick={() => setShowPassword((value) => !value)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-
-                    {/* Password Strength Indicator */}
-                    {password.length > 0 && (
-                      <div className="mt-2 space-y-1.5 bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-left">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-500 font-medium">Strength:</span>
-                          <span className={`font-semibold ${
-                            strength.score <= 2 ? "text-red-700" : strength.score <= 4 ? "text-amber-600" : "text-green-600"
-                          }`}>{strength.label}</span>
-                        </div>
-                        <div className="h-1 w-full bg-slate-200 rounded-full overflow-hidden flex gap-0.5">
-                          <div className={`h-full ${strength.color} rounded-full transition-all duration-300`} style={{ width: `${(strength.score / 5) * 100}%` }}></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-500">
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.length ? "text-green-500" : "text-slate-300"}`} />
-                            <span>8+ Characters</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.upper ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Uppercase letter</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.lower ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Lowercase letter</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.number ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Number</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <CheckCircle2 className={`h-3 w-3 ${strength.checks.special ? "text-green-500" : "text-slate-300"}`} />
-                            <span>Special char</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <PasswordStrengthMeter strength={strength} password={password} />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Confirm New Password
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Confirm New Password</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <input
@@ -962,11 +904,11 @@ export default function LoginPage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-[#f8f9fa] border border-slate-200 focus:border-red-600 focus:bg-white rounded-lg px-3 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:ring-2 focus:ring-red-600/10"
+                        className={`${inputClassName} pl-10 pr-10`}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        onClick={() => setShowConfirmPassword((value) => !value)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 p-0"
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -974,32 +916,23 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 active:bg-red-900 text-white font-semibold text-sm rounded-lg transition-all shadow-sm hover:shadow-md hover:shadow-red-700/15 cursor-pointer"
-                  >
+                  <button type="submit" className={primaryButtonClassName}>
                     Reset Password
                   </button>
                 </form>
 
                 <div className="mt-5 pt-4 border-t border-slate-100 text-center text-sm text-slate-500">
                   Cancel resetting?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setView("login")}
-                    className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0"
-                  >
+                  <button type="button" onClick={() => setView("login")} className="text-red-600 font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0">
                     Back to Sign In
                   </button>
                 </div>
               </div>
             )}
+          </LoginFormCard>
 
-          </div>
           <div className="mt-6 text-center">
-            <p className="text-[11px] text-slate-400">
-              
-            </p>
+            <p className="text-[11px] text-slate-400" />
           </div>
         </div>
       </div>
