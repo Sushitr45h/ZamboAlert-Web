@@ -2,8 +2,8 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/login/LoginPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
-import SettingsPage from "./pages/SettingsPage";
-import PersonnelAlertPage from "./pages/PersonnelAlertPage";
+import SettingsPage from "./pages/settings/SettingsPage";
+import PersonnelAlertPage from "./pages/personnel-alert/PersonnelAlertPage";
 
 function PrivateRoute({ children }) {
   const auth = localStorage.getItem("zamboalert_auth");

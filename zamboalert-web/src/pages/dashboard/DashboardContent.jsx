@@ -12,8 +12,8 @@ import {
   ShieldCheck,
   Volume2,
 } from "lucide-react";
-import PersonnelPage from "../PersonnelAlertPage";
-import SettingsPage from "../SettingsPage";
+import PersonnelPage from "../personnel-alert/PersonnelAlertPage";
+import SettingsPage from "../settings/SettingsPage";
 import { MESH_NODES, fmtTime } from "./dashboardData";
 import { TacticalMap, SignalBars, PingDot, StatusBadge, RescuerBadge } from "./DashboardMap";
 import {
