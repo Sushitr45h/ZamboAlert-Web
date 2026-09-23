@@ -633,13 +633,13 @@ app.post("/api/auth/login", (req, res) => {
       if (err) return res.status(500).json({ message: "Database query error" });
       if (!user) return res.status(401).json({ message: "Invalid username/email or password" });
 
-      if (!user.is_verified) {
-        return res.status(403).json({ message: "Email verification required", email: user.email, unverified: true });
-      }
-
       const validPassword = await bcrypt.compare(password, user.password);
       if (!validPassword) {
         return res.status(401).json({ message: "Invalid username/email or password" });
+      }
+
+      if (!user.is_verified) {
+        return res.status(403).json({ message: "Email verification required", email: user.email, unverified: true });
       }
 
       // Generate 2FA code

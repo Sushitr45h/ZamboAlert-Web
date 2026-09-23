@@ -199,7 +199,7 @@ export default function LoginPage() {
         setResendTimer(60);
         setEmailOpened(false);
         showNotificationMsg("2FA Code sent to your official email.", "success");
-      } else if (data.unverified) {
+      } else if (response.status === 403 && data.unverified) {
         setEmail(data.email);
         setView("verify");
         showNotificationMsg(data.message, "warning");
@@ -795,10 +795,6 @@ export default function LoginPage() {
                     <span className="text-[9px] font-mono text-red-700 uppercase tracking-widest block">Lockout Timer</span>
                     <span className="text-lg font-mono text-red-700 font-bold">{lockoutTime} seconds remaining</span>
                   </div>
-                </div>
-
-                <div className="text-xs text-slate-400">
-                  IP Logged: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-red-700 font-mono text-[11px]">192.168.1.100</code>
                 </div>
               </div>
             )}
