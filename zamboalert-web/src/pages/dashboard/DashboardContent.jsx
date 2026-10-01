@@ -583,13 +583,7 @@ export default function DashboardContent({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden xl:flex items-center gap-2">
-            <button onClick={() => setShowBroadcast(true)} className="px-3 py-2 bg-red-700 hover:bg-red-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"><Volume2 size={13} /><span>LoRa Broadcast</span></button>
-            <button onClick={() => setShowAutoCallModal(true)} className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"><PhoneForwarded size={13} /><span>Auto-Call ZCDRRMO</span></button>
-            <button onClick={() => setShowCallRescuerModal(true)} className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"><PhoneCall size={13} /><span>Call & Dispatch</span></button>
-          </div>
 
-          <div className="h-6 w-px bg-slate-200 hidden xl:block" />
 
           <div className="text-right hidden sm:block">
             <div className="text-xs font-mono font-bold text-slate-900">{fmtTime(now)}</div>
