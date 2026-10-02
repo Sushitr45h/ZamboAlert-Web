@@ -4,7 +4,7 @@ import {
   Compass,
   Download,
   Home,
-  PhoneCall,
+  MessageSquare,
   PhoneForwarded,
   Printer,
   RefreshCw,
@@ -19,7 +19,7 @@ import { TacticalMap, SignalBars, PingDot, StatusBadge, RescuerBadge } from "./D
 import {
   AutoCallZcdrrmoModal,
   BroadcastModal,
-  CallRescuerModal,
+  MessageRescuerModal,
   DispatchModal,
 } from "./DashboardModals";
 
@@ -210,8 +210,8 @@ export default function DashboardContent({
           </button>
 
           <button onClick={() => setShowCallRescuerModal(true)} className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-2.5 cursor-pointer">
-            <PhoneCall size={16} />
-            <span>Call & Dispatch Rescuer</span>
+            <MessageSquare size={16} />
+            <span>Message Rescuer</span>
           </button>
 
           <button onClick={() => setActiveTab("residents")} className="w-full py-2.5 px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-2.5 cursor-pointer">
@@ -606,14 +606,13 @@ export default function DashboardContent({
         />
       )}
       {showCallRescuerModal && (
-        <CallRescuerModal
+        <MessageRescuerModal
           rescuers={rescuers}
           casualties={casualtyLogs}
           alerts={alerts}
           onClose={() => setShowCallRescuerModal(false)}
           onDispatch={(rescuerId, targetType, targetId, targetName) => {
             handleDispatch(rescuerId, targetType, targetId, targetName);
-            setShowCallRescuerModal(false);
           }}
         />
       )}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -120,12 +120,27 @@ export default function SettingsPage() {
         attributionControl: false,
       }).setView([initialLat, initialLng], 14);
 
-      const url =
-        mapType === "satellite"
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      const mapboxStyle = mapType === "satellite" ? "satellite-streets-v12" : "streets-v12";
+
+      const url = mapboxToken
+        ? `https://api.mapbox.com/styles/v1/mapbox/${mapboxStyle}/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`
+        : mapType === "satellite"
           ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-      const tileLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(map);
+      const attribution = mapboxToken
+        ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        : mapType === "satellite"
+          ? "&copy; Esri &mdash; Satellite Imagery"
+          : "&copy; OpenStreetMap contributors";
+
+      const tileLayer = L.tileLayer(url, {
+        attribution,
+        maxZoom: 19,
+        tileSize: mapboxToken ? 512 : 256,
+        zoomOffset: mapboxToken ? -1 : 0,
+      }).addTo(map);
       tileLayerRef.current = tileLayer;
       mapRef.current = map;
 
@@ -197,12 +212,27 @@ export default function SettingsPage() {
       mapRef.current.removeLayer(tileLayerRef.current);
     }
 
-    const url =
-      mapType === "satellite"
+    const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+    const mapboxStyle = mapType === "satellite" ? "satellite-streets-v12" : "streets-v12";
+
+    const url = mapboxToken
+      ? `https://api.mapbox.com/styles/v1/mapbox/${mapboxStyle}/tiles/512/{z}/{x}/{y}@2x?access_token=${mapboxToken}`
+      : mapType === "satellite"
         ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-    const tileLayer = L.tileLayer(url, { maxZoom: 19 }).addTo(mapRef.current);
+    const attribution = mapboxToken
+      ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      : mapType === "satellite"
+        ? "&copy; Esri &mdash; Satellite Imagery"
+        : "&copy; OpenStreetMap contributors";
+
+    const tileLayer = L.tileLayer(url, {
+      attribution,
+      maxZoom: 19,
+      tileSize: mapboxToken ? 512 : 256,
+      zoomOffset: mapboxToken ? -1 : 0,
+    }).addTo(mapRef.current);
     tileLayerRef.current = tileLayer;
   }, [mapType]);
 
