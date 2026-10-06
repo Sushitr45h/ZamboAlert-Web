@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  LoaderCircle,
 } from "lucide-react";
 
 import LoginBrandPanel from "./LoginBrandPanel";
@@ -34,6 +35,8 @@ export default function LoginPage() {
   const [emailOpened, setEmailOpened] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const isLoggingInRef = useRef(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const resendRef = useRef(null);
@@ -180,11 +183,15 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (isLoggingInRef.current) return;
     if (failedAttempts >= 2) {
       setView("locked");
       setLockoutTime(30);
       return;
     }
+
+    isLoggingInRef.current = true;
+    setIsLoggingIn(true);
 
     try {
       const response = await apiRequest("/api/auth/login", {
@@ -210,6 +217,9 @@ export default function LoginPage() {
       }
     } catch (error) {
       showNotificationMsg("Cannot connect to backend server. Make sure it is running.", "error");
+    } finally {
+      isLoggingInRef.current = false;
+      setIsLoggingIn(false);
     }
   };
 
@@ -503,8 +513,14 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <button type="submit" className={primaryButtonClassName}>
-                    Sign In
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    aria-busy={isLoggingIn}
+                    className={`${primaryButtonClassName} inline-flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70`}
+                  >
+                    {isLoggingIn && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    <span>{isLoggingIn ? "Signing in..." : "Sign In"}</span>
                   </button>
                 </form>
 

@@ -423,7 +423,7 @@ export function TacticalMap({
     });
   }, [is3D]);
 
-  // Update Radar Layer Visibility
+  // Update Radar Layer Visibility  
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
